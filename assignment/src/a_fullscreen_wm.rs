@@ -119,6 +119,8 @@ pub struct FullscreenWM {
 pub enum FullscreenWMError {
     /// This window is not known by the window manager.
     UnknownWindow(Window),
+    /// This window is already managed by the window manager.
+    AlReadyManagedWindow(Window),
 }
 
 // This code is explained in the documentation of the associated [Error] type
@@ -127,6 +129,7 @@ impl fmt::Display for FullscreenWMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             FullscreenWMError::UnknownWindow(ref window) => write!(f, "Unknown window: {}", window),
+            FullscreenWMError::AlReadyManagedWindow(ref window) => write!(f, "Already managed window: {}", window),
         }
     }
 }
@@ -137,6 +140,7 @@ impl error::Error for FullscreenWMError {
     fn description(&self) -> &'static str {
         match *self {
             FullscreenWMError::UnknownWindow(_) => "Unknown window",
+            FullscreenWMError::AlReadyManagedWindow(_) => "Already managed window",
         }
     }
 }
@@ -181,8 +185,10 @@ impl WindowManager for FullscreenWM {
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
         if !self.is_managed(window_with_info.window) {
             self.windows.push(window_with_info.window);
+            Ok(())
+        } else {
+            Err(FullscreenWMError::AlReadyManagedWindow(window_with_info.window))
         }
-        Ok(())
     }
 
     /// To remove a window, just remove it from the `windows` `Vec`.
