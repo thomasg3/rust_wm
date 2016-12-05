@@ -20,18 +20,11 @@
 //! or you want to explain your approach, write it down after the comments
 //! section.
 //!
-//! COMPLETED: ?
+//! COMPLETED: YES
 //!
-//! COMMENTS:
-//!
-//! ...
+//! COMMENTS: /
 //!
 
-// Because not all methods are implemented yet, some arguments are unused,
-// which generates warnings. The annotation below disables this warning.
-// Remove this annotation when you have implemented all methods, so you get
-// warned about variables that you did not use by mistake.
-#![allow(unused_variables)]
 
 // We import std::error and std::format so we can say error::Error instead of
 // std::error::Error, etc.
@@ -39,8 +32,7 @@ use std::error;
 use std::fmt;
 
 // Import some other used types.
-use std::collections::VecDeque;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 
 // Import some types and the WindowManager trait from the cplwm_api crate
 // (defined in the api folder).
@@ -56,20 +48,6 @@ pub type WMName = FullscreenWM;
 
 /// The FullscreenWM struct
 ///
-/// The first thing to do when writing a window manager, is to define a struct
-/// (or enum) that will contain the state of the window manager, e.g. the
-/// managed windows along with their geometries, the focused window, etc.
-///
-/// Depending on the layout and the functionality the window manager provides,
-/// this can vary from simple `Vec`s to trees, hashmaps, etc. You can have a
-/// look at the [collections](https://doc.rust-lang.org/std/collections/) Rust
-/// provides.
-///
-/// Remember that you are free to add additional dependencies to your project,
-/// e.g., for another type of data structure. But this is certainly not
-/// required. For more information, see the Hints & Tricks section of the
-/// assignment.
-///
 /// # Example Representation
 ///
 /// The fullscreen window manager that we are implementing is very simple: it
@@ -77,30 +55,14 @@ pub type WMName = FullscreenWM;
 /// which one is focused. It is not even necessary to remember the geometries
 /// of the windows, as they will all be resized to the size of the screen.
 ///
-/// A possible data structure to keep track of the windows is a simple `Vec`:
-/// the last element in the vector is the window on top, which is also the
-/// only window to display. Why not the first element? Because it is easier to
-/// add an element to the end of a vector. This is convenient, as adding a new
-/// window should also put it on top of the other windows.
-///
-/// Another thing we need to keep track of is the `Screen`, because we must
-/// resize the windows the size of the screen. A `Screen` is passed via the
-/// `new` method of the trait and the `resize_screen` method of the trait
-/// updates the screen with a new one.
-///
-/// These two fields are enough to get started, which does not mean that they
-/// are enough to correctly implement this window manager. As you will notice
-/// in a short while, there is a problem with this representation. Feel free
-/// to add/replace/remove fields.
-///
 /// To understand the `#derive[(..)]` line before the struct, read the
 /// [Supertraits] section of the `WindowManager` trait.
 ///
 /// [Supertraits]: ../../cplwm_api/wm/trait.WindowManager.html#supertraits
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct FullscreenWM {
-    /// A vector deque of windows, the first one is on the bottom, the last one is
-    /// on top
+    /// A vector deque of windows, the first one is the next one to be focused, the last one is
+    /// the previous one to be focused.
     pub windows: VecDeque<Window>,
     /// Currently focused window.
     pub focused_window: Option<Window>,
@@ -137,7 +99,9 @@ impl fmt::Display for FullscreenWMError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             FullscreenWMError::UnknownWindow(ref window) => write!(f, "Unknown window: {}", window),
-            FullscreenWMError::AlReadyManagedWindow(ref window) => write!(f, "Already managed window: {}", window),
+            FullscreenWMError::AlReadyManagedWindow(ref window) => {
+                write!(f, "Already managed window: {}", window)
+            }
         }
     }
 }
@@ -160,7 +124,7 @@ impl WindowManager for FullscreenWM {
 
     /// The constructor is straightforward.
     ///
-    /// Track the given screen and make a new empty `Vec`.
+    /// Track the given screen, no window is initially focused, and add empty Deque and TreeMap
     fn new(screen: Screen) -> FullscreenWM {
         FullscreenWM {
             windows: VecDeque::new(),
@@ -171,32 +135,24 @@ impl WindowManager for FullscreenWM {
     }
 
     /// The `windows` field contains all the windows we manage.
-    ///
-    /// Why do we need a `clone` here?
     fn get_windows(&self) -> Vec<Window> {
         let mut windows: Vec<Window> = self.windows.iter().map(|w| *w).collect();
         match self.focused_window {
             Some(w) => windows.push(w),
             None => {}
         }
-        return windows
+        return windows;
     }
 
-    /// The last window in the list is the focused one.
-    ///
-    /// Note that the `last` method of `Vec` returns an `Option`.
+    /// Returns the currently focused window
     fn get_focused_window(&self) -> Option<Window> {
         self.focused_window
     }
 
-    /// To add a window, just push it onto the end the `windows` `Vec`.
-    ///
-    /// We could choose to return an error when the window is already managed
-    /// by the window manager, but in this case we just do nothing. You are
-    /// free to define another error to handle this case.
-    ///
-    /// Note that we completely ignore the information that comes along with
-    /// the info, this *could* lead to issues in later assignments.
+    /// Add a new window. Focus on the window and push the previous window at the back of the Deque,
+    /// it there is one. Add the given WindowWithInfo to the window_to_info BTreeMap for future use.
+    /// Returns an AlReadyManagedWindow error when the given window is already managed by this
+    /// window manager.
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
         if !self.is_managed(window_with_info.window) {
             match self.focused_window {
@@ -211,26 +167,28 @@ impl WindowManager for FullscreenWM {
         }
     }
 
-    /// To remove a window, just remove it from the `windows` `Vec`.
-    ///
-    /// First we look up the position (or index) of the window in `windows`,
-    /// and then remove it unless the window does not occur in the `Vec`, in
-    /// which case we return an error.
+    /// Remove a window. If the window is focused, simple focus the previous window. Otherwise
+    /// / remove the window from the Deque. Remove any additional information of the window in the
+    /// BTreeMap. Returns an UnknowWindow error when the given window is not managed by this
+    /// window manager
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
         match self.focused_window {
             Some(w) => {
                 if w == window {
                     self.focused_window = self.windows.pop_back();
-                    return Ok(())
+                    self.window_to_info.remove(&w);
+                    return Ok(());
                 }
-            },
+            }
             None => {}
         }
         match self.windows.iter().position(|w| *w == window) {
             None => Err(FullscreenWMError::UnknownWindow(window)),
             Some(i) => {
                 let removed_window = self.windows.remove(i);
-                // after looking up the index of a window, finding it, and then removing said window based on the index, we are 100% there is a window to remove and this function call will always return a valid Ok.
+                // after looking up the index of a window, finding it, and then removing said
+                // window based on the index, we are 100% there is a window to remove and this
+                // function call will always return a valid Ok.
                 self.window_to_info.remove(&removed_window.unwrap());
                 Ok(())
             }
@@ -242,8 +200,7 @@ impl WindowManager for FullscreenWM {
     /// First we build a `Geometry` for a fullscreen window using the
     /// `to_geometry` method: it has the same width and height as the screen.
     ///
-    /// Then we look at the last window, remember that the `last()` method of
-    /// `Vec` returns an `Option`.
+    /// Then we look at the focused_window
     ///
     /// * When the `Option` contains `Some(w)`, we know that there was at
     ///   least one window, and `w`, being the last window in the `Vec` should
@@ -272,24 +229,15 @@ impl WindowManager for FullscreenWM {
         }
     }
 
-    // Before you continue any further, first have a look at the bottom of
-    // this file, where we show you how to write unit tests.
-
-    /// Try this yourself
-    ///
-    /// Don't forget that when the argument is `None`, i.e. no window should
-    /// be focused, `get_focused_window()` must return `None` afterwards. The
-    /// `focused_window` field of the `WindowLayout` must also be `None`.
-    ///
-    /// You will probably have to change the code above (method
-    /// implementations as well as the `FullscreenWM` struct) to achieve this.
+    /// Puts the given window in focused_window. If None is given, None is focused.
+    /// Returns an UnknownWindow error when the given window si not managed by this window manager
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
         match self.focused_window {
-            /// if there is a focused window, put it on the Deque and unfocus it
+            /// if there is a focused window, put it at the back of the Deque and unfocus it
             Some(w) => {
                 self.windows.push_back(w);
                 self.focused_window = None;
-            },
+            }
             None => {}
         };
         match window {
@@ -308,21 +256,32 @@ impl WindowManager for FullscreenWM {
         }
     }
 
-    /// Try this yourself
+    /// When cycling to Next, the window at the front of the deque is focused and the currently
+    /// focused window is put at the back of the deque.
+    /// When cycling to Prev, the window at the back of the deque is focused and the currently
+    /// focused window is put at the front of the deque
     fn cycle_focus(&mut self, dir: PrevOrNext) {
         match dir {
             PrevOrNext::Next => {
-                self.focused_window.and_then(|w| {self.windows.push_back(w); Some(w)});
+                self.focused_window.and_then(|w| {
+                    self.windows.push_back(w);
+                    Some(w)
+                });
                 self.focused_window = self.windows.pop_front()
-            },
+            }
             PrevOrNext::Prev => {
-                self.focused_window.and_then(|w| {self.windows.push_front(w); Some(w)});
+                self.focused_window.and_then(|w| {
+                    self.windows.push_front(w);
+                    Some(w)
+                });
                 self.focused_window = self.windows.pop_back()
             }
         }
     }
 
-    /// Try this yourself
+    /// Returns a window's info in this window manager. The info is adapted to this window manager
+    /// (the geometry is set to full screen and fullscreen is set to true)
+    /// Returns an UnknownWindow error when the given window si not managed by this window manager
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
         let window_info = self.window_to_info.get(&window);
         match window_info {
@@ -332,28 +291,24 @@ impl WindowManager for FullscreenWM {
                     window: w.window,
                     geometry: self.screen.to_geometry(),
                     float_or_tile: FloatOrTile::Tile,
-                    fullscreen: true
+                    fullscreen: true,
                 })
             }
         }
     }
 
-    /// Try this yourself
+    /// Returns the screen
     fn get_screen(&self) -> Screen {
         self.screen
     }
 
-    /// Try this yourself
+    /// Replace the current screen with the new screen
     fn resize_screen(&mut self, screen: Screen) {
         self.screen = screen
     }
 }
 
-// Here we define a submodule, called `tests`, that will contain the unit
-// tests of this module.
-//
-// The `#[cfg(test)]` annotation means that this code is only compiled when
-// we're testing the code.
+
 #[cfg(test)]
 mod tests {
 
@@ -389,10 +344,6 @@ mod tests {
     };
 
 
-    // Now let's write our test.
-    //
-    // Note that tests are annotated with `#[test]`, and cannot take arguments
-    // nor return anything.
     #[test]
     fn test_adding_and_removing_some_windows() {
         // Let's make a new `FullscreenWM` with `SCREEN` as screen.
@@ -457,8 +408,9 @@ mod tests {
         // Book: https://doc.rust-lang.org/book/testing.html
     }
 
+    /// Test the focus(Some(window)) and the focus(None) functionality
     #[test]
-    fn test_focus_and_unfocus_window(){
+    fn test_focus_and_unfocus_window() {
         // Initialize test with a new window manager
         let mut wm = FullscreenWM::new(SCREEN);
         // Assert the initial focused_window window is None
@@ -482,8 +434,9 @@ mod tests {
 
     }
 
+    /// Test cycle_focus in a window manager with no windows and with one window
     #[test]
-    fn test_cycle_focus_none_and_one_window(){
+    fn test_cycle_focus_none_and_one_window() {
         // Initialize test with a new window manager
         let mut wm = FullscreenWM::new(SCREEN);
         // Assert the initial focused_window window is None
@@ -513,9 +466,11 @@ mod tests {
         assert_eq!(Some(1), wm.get_window_layout().focused_window);
     }
 
+    /// Test cycle_focus in a window manager with multiple windows
     #[test]
-    fn test_cycle_focus_multiple_windows(){
-        // Initialize test with a new window manager, add 3 windows and assert the last one added is focused
+    fn test_cycle_focus_multiple_windows() {
+        // Initialize test with a new window manager, add 3 windows and
+        // assert the last one added is focused
         let mut wm = FullscreenWM::new(SCREEN);
         wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).unwrap();
         wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).unwrap();
