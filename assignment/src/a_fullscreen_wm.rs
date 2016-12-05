@@ -325,12 +325,12 @@ impl WindowManager for FullscreenWM {
 
     /// Try this yourself
     fn get_screen(&self) -> Screen {
-        unimplemented!()
+        self.screen
     }
 
     /// Try this yourself
     fn resize_screen(&mut self, screen: Screen) {
-        unimplemented!()
+        self.screen = screen
     }
 }
 
