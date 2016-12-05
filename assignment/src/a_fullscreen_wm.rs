@@ -40,10 +40,11 @@ use std::fmt;
 
 // Import some other used types.
 use std::collections::VecDeque;
+use std::collections::BTreeMap;
 
 // Import some types and the WindowManager trait from the cplwm_api crate
 // (defined in the api folder).
-use cplwm_api::types::{PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
+use cplwm_api::types::{FloatOrTile, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::WindowManager;
 
 /// You are free to choose the name for your window manager. As we will use
@@ -105,6 +106,8 @@ pub struct FullscreenWM {
     pub focused_window: Option<Window>,
     /// We need to know which size the fullscreen window must be.
     pub screen: Screen,
+    /// A BTreeMap to map windows to the given window info
+    pub window_to_info: BTreeMap<Window, WindowWithInfo>,
 }
 
 /// The errors that this window manager can return.
@@ -163,6 +166,7 @@ impl WindowManager for FullscreenWM {
             windows: VecDeque::new(),
             focused_window: None,
             screen: screen,
+            window_to_info: BTreeMap::new(),
         }
     }
 
@@ -196,13 +200,11 @@ impl WindowManager for FullscreenWM {
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
         if !self.is_managed(window_with_info.window) {
             match self.focused_window {
-                Some(w) => {
-                    self.windows.push_back(w);
-                    self.focused_window = Some(window_with_info.window)
-                },
-                None => self.focused_window = Some(window_with_info.window)
+                Some(w) => self.windows.push_back(w),
+                None => {}
             }
-
+            self.focused_window = Some(window_with_info.window);
+            self.window_to_info.insert(window_with_info.window, window_with_info);
             Ok(())
         } else {
             Err(FullscreenWMError::AlReadyManagedWindow(window_with_info.window))
@@ -227,7 +229,9 @@ impl WindowManager for FullscreenWM {
         match self.windows.iter().position(|w| *w == window) {
             None => Err(FullscreenWMError::UnknownWindow(window)),
             Some(i) => {
-                self.windows.remove(i);
+                let removed_window = self.windows.remove(i);
+                // after looking up the index of a window, finding it, and then removing said window based on the index, we are 100% there is a window to remove and this function call will always return a valid Ok.
+                self.window_to_info.remove(&removed_window.unwrap());
                 Ok(())
             }
         }
@@ -320,7 +324,18 @@ impl WindowManager for FullscreenWM {
 
     /// Try this yourself
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
-        unimplemented!()
+        let window_info = self.window_to_info.get(&window);
+        match window_info {
+            None => Err(FullscreenWMError::UnknownWindow(window)),
+            Some(w) => {
+                Ok(WindowWithInfo {
+                    window: w.window,
+                    geometry: self.screen.to_geometry(),
+                    float_or_tile: FloatOrTile::Tile,
+                    fullscreen: true
+                })
+            }
+        }
     }
 
     /// Try this yourself
