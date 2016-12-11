@@ -17,11 +17,10 @@
 //! or you want to explain your approach, write it down after the comments
 //! section.
 //!
-//! COMPLETED: ?
+//! COMPLETED: YES
 //!
-//! COMMENTS:
+//! COMMENTS: /
 //!
-//! ...
 //!
 
 // Add imports here
@@ -32,12 +31,7 @@ use wm_common::TilingLayout;
 use a_fullscreen_wm::{FullscreenWM, FullscreenWMError};
 use std::collections::VecDeque;
 
-/// **TODO**: You are free to choose the name for your window manager. As we
-/// will use automated tests when grading your assignment, indicate here the
-/// name of your window manager data type so we can just use `WMName` instead
-/// of having to manually figure out your window manager name.
-///
-/// Replace `()` with the name of your window manager data type.
+/// The public type.
 pub type WMName = TilingWM<VerticalLayout>;
 
 
