@@ -67,6 +67,7 @@ impl WindowManager for TilingWM<VerticalLayout> {
     fn get_windows(&self) -> Vec<Window> {
         self.fullscreen_wm.get_windows()
     }
+
     fn get_focused_window(&self) -> Option<Window> {
         self.fullscreen_wm.get_focused_window()
     }
@@ -79,6 +80,7 @@ impl WindowManager for TilingWM<VerticalLayout> {
             Ok(())
         })
     }
+
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
         self.fullscreen_wm.remove_window(window).and_then(|_| {
             // If remove_window succeeded in the underlying fullscreen_wm, we know for
@@ -92,26 +94,28 @@ impl WindowManager for TilingWM<VerticalLayout> {
             }
         })
     }
+
     fn get_window_layout(&self) -> WindowLayout {
-        let layout = VerticalLayout{};
         WindowLayout {
             focused_window: self.get_focused_window(),
             windows: self.get_windows().iter()
                 // We know for sure the window argument in get_window_geometry is a managed window,
                 // because it comes directly from get_windows.
-                .map(|window| (*window, layout.get_window_geometry(*window, &self.get_screen(), &self.tiles).unwrap()))
+                .map(|window| (*window, self.layout.get_window_geometry(*window, &self.get_screen(), &self.tiles).unwrap()))
                 .collect(),
         }
     }
+
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
         self.fullscreen_wm.focus_window(window)
     }
+
     fn cycle_focus(&mut self, dir: PrevOrNext) {
         self.fullscreen_wm.cycle_focus(dir)
     }
+
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
-        let layout = VerticalLayout{};
-        layout.get_window_geometry(window, &self.get_screen(), &self.tiles).and_then(|geometry| {
+        self.layout.get_window_geometry(window, &self.get_screen(), &self.tiles).and_then(|geometry| {
             Ok(WindowWithInfo {
                 window: window,
                 geometry: geometry,
@@ -120,16 +124,17 @@ impl WindowManager for TilingWM<VerticalLayout> {
             })
         })
     }
+
     fn get_screen(&self) -> Screen {
         self.fullscreen_wm.get_screen()
     }
+
     fn resize_screen(&mut self, screen: Screen) {
         self.fullscreen_wm.resize_screen(screen)
     }
 }
 
 impl TilingSupport for TilingWM<VerticalLayout> {
-
     fn get_master_window(&self) -> Option<Window> {
         self.layout.get_master_window(&self.tiles)
     }
