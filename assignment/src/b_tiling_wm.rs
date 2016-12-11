@@ -196,22 +196,39 @@ impl TilingLayout for VerticalLayout {
 
 
     fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>{
-        let side_tile_height = if tiles.len() > 1 { screen.height / (tiles.len() - 1) as u32 } else { 0 };
-        let only_master = side_tile_height == 0;
+        let only_master = tiles.len() <= 1;
+        let master_tile_width = screen.width / if only_master { 1 } else { 2 };
         match tiles.iter().position(|w| *w == window) {
             None => Err(FullscreenWMError::UnknownWindow(window)),
             Some(0) => Ok(Geometry {
                 x: 0,
                 y: 0,
-                width: screen.width / if only_master { 1 } else { 2 },
+                width: master_tile_width,
                 height: screen.height
             }),
-            Some(index) => Ok(Geometry {
-                                x: (screen.width / 2) as i32,
-                                y: (index as i32 - 1) * side_tile_height as i32,
-                                width: (screen.width / 2),
-                                height: side_tile_height,
-                            })
+            Some(index) => {
+                // side tiles should get the remaining width of the screen.
+                let remaining_width = screen.width - master_tile_width;
+                let last_index = tiles.len() - 1;
+                let side_tile_height = if tiles.len() > 1 { screen.height / (tiles.len() - 1) as u32 } else { 0 };
+                if index != last_index {
+                    Ok(Geometry {
+                        x: (screen.width / 2) as i32,
+                        y: (index as i32 - 1) * side_tile_height as i32,
+                        width: remaining_width,
+                        height: side_tile_height,
+                    })
+                } else {
+                    // the last side tile should get the remaining height of the screen.
+                    let remaining_height = (screen.height as i32 - side_tile_height as i32 * (last_index as i32 - 1) ) as u32;
+                    Ok(Geometry {
+                        x: (screen.width / 2) as i32,
+                        y: (index as i32 - 1) * side_tile_height as i32,
+                        width: screen.width - (screen.width / 2),
+                        height: remaining_height,
+                    })
+                }
+            }
         }
     }
 }
@@ -220,6 +237,168 @@ fn neighbour_of(&index : &i32, dir: PrevOrNext) -> i32{
     match dir {
         PrevOrNext::Prev => index - 1,
         PrevOrNext::Next => index + 1
+    }
+}
+
+#[cfg(test)]
+mod vertical_layout_tests {
+    use super::VerticalLayout;
+    use wm_common::TilingLayout;
+    use std::collections::VecDeque;
+    use cplwm_api::types::*;
+
+    static SCREEN1: Screen = Screen {
+        width: 200,
+        height: 300,
+    };
+
+    static SCREEN2: Screen = Screen {
+        width: 301,
+        height: 401,
+    };
+
+    #[test]
+    fn test_vertical_layout_no_window(){
+        // Initialize new VerticalLayout strategy
+        let layout = VerticalLayout{};
+        // Initialize empty tile Deque
+        let mut tiles = VecDeque::new();
+
+        // make sure there is no geometry.
+        assert!(layout.get_window_geometry(1, &SCREEN1, &tiles).is_err());
+    }
+
+    #[test]
+    fn test_vertical_layout_one_window(){
+        // Initialize new VerticalLayout strategy
+        let layout = VerticalLayout{};
+        // Initialize empty tile Deque
+        let mut tiles = VecDeque::new();
+        // Push one window on the Deque
+        tiles.push_back(1);
+
+        // compare to exptected geometry
+        assert_eq!(Geometry{
+            x: 0,
+            y: 0,
+            width: SCREEN1.width,
+            height: SCREEN1.height,
+        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+    }
+
+    #[test]
+    fn test_vertical_layout_two_windows(){
+        // Initialize new VerticalLayout strategy
+        let layout = VerticalLayout{};
+        // Initialize empty tile Deque
+        let mut tiles = VecDeque::new();
+        // Push 2 tiles on the Deque, the first one will be the master in this layout.
+        tiles.push_back(1);
+        tiles.push_back(2);
+
+        // compare to exptected geometry
+        assert_eq!(Geometry{
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 300,
+        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry{
+            x: 100,
+            y: 0,
+            width: 100,
+            height: 300,
+        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+
+        // any other window should return an error
+        assert!(layout.get_window_geometry(3, &SCREEN1, &tiles).is_err());
+    }
+
+    #[test]
+    fn test_vertical_layout_multiple_windows_regular_screen(){
+        // Initialize new VerticalLayout strategy
+        let layout = VerticalLayout{};
+        // Initialize empty tile Deque
+        let mut tiles = VecDeque::new();
+        // Push 4 tiles on the Deque, the first one will be the master in this layout.
+        tiles.push_back(1);
+        tiles.push_back(2);
+        tiles.push_back(3);
+        tiles.push_back(4);
+
+        // compare to exptected geometry
+        assert_eq!(Geometry{
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 300,
+        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry{
+            x: 100,
+            y: 0,
+            width: 100,
+            height: 100,
+        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry{
+            x: 100,
+            y: 100,
+            width: 100,
+            height: 100,
+        },layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry{
+            x: 100,
+            y: 200,
+            width: 100,
+            height: 100,
+        },layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
+    }
+
+    // test to see this layout handles tiles which should round the heights correctly
+    #[test]
+    fn test_vertical_layout_multiple_windows_irregular_screen(){
+        // Initialize new VerticalLayout strategy
+        let layout = VerticalLayout{};
+        // Initialize empty tile Deque
+        let mut tiles = VecDeque::new();
+        // Push 4 tiles on the Deque, the first one will be the master in this layout.
+        tiles.push_back(1);
+        tiles.push_back(2);
+        tiles.push_back(3);
+        tiles.push_back(4);
+
+        // compare to exptected geometry
+        assert_eq!(Geometry{
+            x: 0,
+            y: 0,
+            width: 150,
+            height: 401,
+        },layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry{
+            x: 150,
+            y: 0,
+            width: 151,
+            height: 133,
+        },layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry{
+            x: 150,
+            y: 133,
+            width: 151,
+            height: 133,
+        },layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
+
+        // last one should get remaining screen space.
+        assert_eq!(Geometry{
+            x: 150,
+            y: 266,
+            width: 151,
+            height: 135,
+        },layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
     }
 }
 
@@ -350,8 +529,4 @@ mod tests {
         // use the common test
         tiling_support::test_get_window_info(wm, VerticalLayout{});
     }
-
-    //TODO: test for the VerticalLayout
-
-
 }
