@@ -269,6 +269,7 @@ mod tests {
     // We have to repeat the imports we did in the super module.
     use cplwm_api::wm::WindowManager;
     use cplwm_api::types::*;
+    use wm_common::tests::window_manager;
 
     // We define a static variable for the screen we will use in the tests.
     // You can just as well define it as a local variable in your tests.
@@ -277,174 +278,60 @@ mod tests {
         height: 600,
     };
 
-    // We define a static variable for the geometry of a fullscreen window.
-    // Note that it matches the dimensions of `SCREEN`.
-    static SCREEN_GEOM: Geometry = Geometry {
-        x: 0,
-        y: 0,
-        width: 800,
-        height: 600,
-    };
-
-    // We define a static variable for some random geometry that we will use
-    // when adding windows to a window manager.
-    static SOME_GEOM: Geometry = Geometry {
-        x: 10,
-        y: 10,
-        width: 100,
-        height: 100,
-    };
-
-
     #[test]
-    fn test_adding_and_removing_some_windows() {
-        // Let's make a new `FullscreenWM` with `SCREEN` as screen.
-        let mut wm = FullscreenWM::new(SCREEN);
-
-        // Initially the window layout should be empty.
-        assert_eq!(WindowLayout::new(), wm.get_window_layout());
-        // `assert_eq!` is a macro that will check that the second argument,
-        // the actual value, matches first value, the expected value.
-
-        // Let's add a window
-        wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).unwrap();
-        // Because `add_window` returns a `Result`, we use `unwrap`, which
-        // tries to extract the `Ok` value from the result, but will panic
-        // (crash) when it is an `Err`. You must be very careful when using
-        // `unwrap` in your code. Here we can use it because we know for sure
-        // that an `Err` won't be returned, and even if that were the case,
-        // the panic will simply cause the test to fail.
-
-        // The window should now be managed by the WM
-        assert!(wm.is_managed(1));
-        // and be present in the `Vec` of windows.
-        assert_eq!(vec![1], wm.get_windows());
-        // According to the window layout
-        let wl1 = wm.get_window_layout();
-        // it should be focused
-        assert_eq!(Some(1), wl1.focused_window);
-        // and fullscreen.
-        assert_eq!(vec![(1, SCREEN_GEOM)], wl1.windows);
-
-        // Let's add another window.
-        wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).unwrap();
-        // It should now be managed by the WM.
-        assert!(wm.is_managed(2));
-        // The `Vec` of windows should now contain both windows 1 and 2.
-        assert_eq!(vec![1, 2], wm.get_windows());
-        // According to the window layout
-        let wl2 = wm.get_window_layout();
-        // window 2 should be focused
-        assert_eq!(Some(2), wl2.focused_window);
-        // and fullscreen.
-        assert_eq!(vec![(2, SCREEN_GEOM)], wl2.windows);
-
-        // Now let's remove window 2
-        wm.remove_window(2).unwrap();
-        // It should no longer be managed by the WM.
-        assert!(!wm.is_managed(2));
-        // The `Vec` of windows should now just contain window 1.
-        assert_eq!(vec![1], wm.get_windows());
-        // According to the window layout
-        let wl3 = wm.get_window_layout();
-        // window 1 should be focused again
-        assert_eq!(Some(1), wl3.focused_window);
-        // and fullscreen.
-        assert_eq!(vec![(1, SCREEN_GEOM)], wl3.windows);
-
-
-        // To run these tests, run the command `cargo test` in the `solution`
-        // directory.
-        //
-        // To learn more about testing, check the Testing chapter of the Rust
-        // Book: https://doc.rust-lang.org/book/testing.html
+    fn test_empty_tiling_wm(){
+        // Initialize test with a new window manager
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_empty_wm(wm, SCREEN);
     }
 
-    /// Test the focus(Some(window)) and the focus(None) functionality
+    #[test]
+    fn test_adding_and_removing_some_windows(){
+        // Initialize test with a new window manager
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_adding_and_removing_windows(wm);
+    }
+
     #[test]
     fn test_focus_and_unfocus_window() {
         // Initialize test with a new window manager
-        let mut wm = FullscreenWM::new(SCREEN);
-        // Assert the initial focused_window window is None
-        assert_eq!(None, wm.get_window_layout().focused_window);
-
-        // Add one window
-        wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).unwrap();
-        // Assert it is focused after adding
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-
-        // Unfocus all windows
-        wm.focus_window(None).unwrap();
-        // Assert the window is unfocused
-        assert_eq!(None, wm.get_window_layout().focused_window);
-
-
-        // Focus window 1 again
-        wm.focus_window(Some(1)).unwrap();
-        // Assert window 1 is correctly focused
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_focus_and_unfocus_window(wm);
     }
 
-    /// Test cycle_focus in a window manager with no windows and with one window
     #[test]
     fn test_cycle_focus_none_and_one_window() {
         // Initialize test with a new window manager
-        let mut wm = FullscreenWM::new(SCREEN);
-        // Assert the initial focused_window window is None
-        assert_eq!(None, wm.get_window_layout().focused_window);
-
-        // Cycle does nothing when there are no windows
-        wm.cycle_focus(PrevOrNext::Next);
-        assert_eq!(None, wm.get_window_layout().focused_window);
-        wm.cycle_focus(PrevOrNext::Prev);
-        assert_eq!(None, wm.get_window_layout().focused_window);
-
-        // Add one window
-        wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).unwrap();
-        // Assert it is focused after adding
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-
-        // When there is only one window, focus it if it no window is focused, otherswise do nothing
-        wm.cycle_focus(PrevOrNext::Next);
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-        wm.cycle_focus(PrevOrNext::Prev);
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-        wm.focus_window(None).unwrap();
-        wm.cycle_focus(PrevOrNext::Next);
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-        wm.focus_window(None).unwrap();
-        wm.cycle_focus(PrevOrNext::Prev);
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_cycle_focus_none_and_one_window(wm);
     }
 
-    /// Test cycle_focus in a window manager with multiple windows
     #[test]
     fn test_cycle_focus_multiple_windows() {
-        // Initialize test with a new window manager, add 3 windows and
-        // assert the last one added is focused
-        let mut wm = FullscreenWM::new(SCREEN);
-        wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).unwrap();
-        wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).unwrap();
-        wm.add_window(WindowWithInfo::new_tiled(3, SOME_GEOM)).unwrap();
-        assert_eq!(Some(3), wm.get_window_layout().focused_window);
-
-        // Cycle back should focus on the previous window
-        wm.cycle_focus(PrevOrNext::Prev);
-        assert_eq!(Some(2), wm.get_window_layout().focused_window);
-
-        // Going back and forth shouldn't cange the focused window
-        wm.cycle_focus(PrevOrNext::Next);
-        assert_eq!(Some(3), wm.get_window_layout().focused_window);
-
-        // Cycle forth should focus on the next window
-        wm.cycle_focus(PrevOrNext::Next);
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-
-        // When no window is focused, any window may become focused
-        wm.focus_window(None).unwrap();
-        wm.cycle_focus(PrevOrNext::Prev);
-        assert_eq!(Some(1), wm.get_window_layout().focused_window);
-
+        // Initialize test with a new window manager
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_cycle_focus_multiple_windows(wm);
     }
+
+    #[test]
+    fn test_get_window_info(){
+        // Initialize test with a new window manager
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_get_window_info(wm);
+    }
+
+    #[test]
+    fn test_resize_screen(){
+        // Initialize test with a new window manager
+        let wm = FullscreenWM::new(SCREEN);
+        // use common test
+        window_manager::test_resize_screen(wm, SCREEN);
+    }
+
 }
