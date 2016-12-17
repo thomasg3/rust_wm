@@ -76,14 +76,16 @@ pub struct FocusManager {
 
 impl FocusManager {
 
-    fn new() -> FocusManager {
+    /// A new, empty FocusManager
+    pub fn new() -> FocusManager {
         FocusManager {
             windows: VecDeque::new(),
             focused_window: None,
         }
     }
 
-    fn get_windows(&self) -> Vec<Window> {
+    /// All windows managed by this manager
+    pub fn get_windows(&self) -> Vec<Window> {
         let mut windows: Vec<Window> = self.windows.iter().map(|w| *w).collect();
         match self.focused_window {
             Some(w) => windows.push(w),
@@ -92,11 +94,13 @@ impl FocusManager {
         return windows;
     }
 
-    fn get_focused_window(&self) -> Option<Window> {
+    /// The currently focused window
+    pub fn get_focused_window(&self) -> Option<Window> {
         self.focused_window
     }
 
-    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
+    /// Add a window
+    pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
         if !self.get_windows().contains(&window_with_info.window) {
             match self.focused_window {
                 Some(w) => self.windows.push_back(w),
@@ -109,7 +113,8 @@ impl FocusManager {
         }
     }
 
-    fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
+    /// remove a window
+    pub fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
         match self.focused_window {
             Some(w) => {
                 if w == window {
@@ -122,13 +127,14 @@ impl FocusManager {
         match self.windows.iter().position(|w| *w == window) {
             None => Err(StandardError::UnknownWindow(window)),
             Some(i) => {
-                let removed_window = self.windows.remove(i);
+                self.windows.remove(i);
                 Ok(())
             }
         }
     }
 
-    fn focus_window(&mut self, window: Option<Window>) -> Result<(), StandardError> {
+    /// focus anohter window
+    pub fn focus_window(&mut self, window: Option<Window>) -> Result<(), StandardError> {
         match self.focused_window {
             /// if there is a focused window, put it at the back of the Deque and unfocus it
             Some(w) => {
@@ -153,7 +159,8 @@ impl FocusManager {
         }
     }
 
-    fn cycle_focus(&mut self, dir: PrevOrNext) {
+    /// cycle focus
+    pub fn cycle_focus(&mut self, dir: PrevOrNext) {
         match dir {
             PrevOrNext::Next => {
                 self.focused_window.and_then(|w| {

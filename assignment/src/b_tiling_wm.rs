@@ -29,70 +29,139 @@ use cplwm_api::wm::{WindowManager, TilingSupport};
 
 use wm_common::TilingLayout;
 use wm_common::error::StandardError;
-use a_fullscreen_wm::FullscreenWM;
+use a_fullscreen_wm::FocusManager;
 use std::collections::VecDeque;
 
 /// The public type.
-pub type WMName = TilingWM<VerticalLayout>;
+pub type WMName = TilingWM;
 
 
 /// The TilingWM as described in the assignment. Will implement the
 /// WindowManager and the TilingSupport
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct TilingWM<T : TilingLayout>{
-    /// The fullscreen window manager this tiling window manager is wrapped
-    /// around.
-    pub fullscreen_wm: FullscreenWM,
+pub struct TilingWM{
+    /// The manager used to manage the current focus
+    pub focus_manager: FocusManager,
+    /// The managar used to manage the tiles
+    pub tile_manager: TileManager<VerticalLayout>,
+}
+
+/// A manager for managing the tiling of windows
+#[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
+pub struct TileManager<TL: TilingLayout> {
     /// VecDeque to keep the order of the tiles. For the simple vertical layout the first tile is
     /// the master tile.
     pub tiles: VecDeque<Window>,
     /// The layout strategy this Tiling Window Manager uses.
-    pub layout: T,
+    pub layout: TL,
+    /// the screen
+    pub screen: Screen,
+}
+
+impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
+    /// A new, empty TileManager
+    pub fn new(screen: Screen, layout: TL) -> TileManager<TL> {
+        TileManager {
+            tiles: VecDeque::new(),
+            layout: layout,
+            screen: screen,
+        }
+    }
+
+    /// All managed windows in this manager
+    pub fn get_windows(&self) -> Vec<Window> {
+        self.tiles.iter().map(|w| *w).collect()
+    }
+
+    /// Add window to this manager
+    pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
+        if !self.get_windows().contains(&window_with_info.window) {
+            self.tiles.push_back(window_with_info.window);
+            Ok(())
+        } else {
+            Err(StandardError::AlReadyManagedWindow(window_with_info.window))
+        }
+    }
+
+    /// Remove a window of this manager
+    pub fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
+        match self.tiles.iter().position(|w| *w == window) {
+            None => Err(StandardError::UnknownWindow(window)),
+            Some(i) => {
+                self.tiles.remove(i);
+                Ok(())
+            }
+        }
+    }
+
+    /// The screen this manager operates in
+    pub fn get_screen(&self) -> Screen {
+        self.screen
+    }
+
+    /// Resize the screen this manager operates in
+    pub fn resize_screen(&mut self, screen: Screen) {
+        self.screen = screen
+    }
+
+    /// Return current master window
+    pub fn get_master_window(&self) -> Option<Window> {
+        self.layout.get_master_window(&self.tiles)
+    }
+
+    /// Swap the window with the master and focus master through the given focus_manager
+    pub fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), StandardError>{
+        self.layout.swap_with_master(window, &mut self.tiles).and_then(|_| {
+            focus_manager.focus_window(Some(window))
+        })
+    }
+
+    /// Swap currently focused window in the focus_manager with the next or previous tile
+    pub fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
+        focus_manager.get_focused_window().and_then(|window| {
+            self.layout.swap_windows(window, dir, &mut self.tiles);
+            Some(())
+        });
+    }
+
+    /// Return the current Geometry for the given window
+    pub fn get_window_geometry(&self, window: Window) -> Result<Geometry, StandardError>{
+        self.layout.get_window_geometry(window, &self.get_screen(), &self.tiles)
+    }
 }
 
 
 
-impl WindowManager for TilingWM<VerticalLayout> {
+
+
+impl WindowManager for TilingWM {
     /// The Error type is StandardError.
     type Error = StandardError;
 
     /// constructor with given screen
-    fn new(screen: Screen) -> TilingWM<VerticalLayout>  {
+    fn new(screen: Screen) -> TilingWM  {
         TilingWM {
-            fullscreen_wm: FullscreenWM::new(screen),
-            tiles: VecDeque::new(),
-            layout: VerticalLayout{},
+            focus_manager: FocusManager::new(),
+            tile_manager: TileManager::new(screen, VerticalLayout{}),
         }
     }
 
     fn get_windows(&self) -> Vec<Window> {
-        self.fullscreen_wm.get_windows()
+        self.focus_manager.get_windows()
     }
 
     fn get_focused_window(&self) -> Option<Window> {
-        self.fullscreen_wm.get_focused_window()
+        self.focus_manager.get_focused_window()
     }
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
-        self.fullscreen_wm.add_window(window_with_info).and_then(|_| {
-            // No check on whether this window is already added, because the underlying
-            // FullscreenWM checks this for us. So when the add_window returns Ok, it is
-            // ok to add this window.
-            self.tiles.push_back(window_with_info.window);
-            Ok(())
+        self.focus_manager.add_window(window_with_info).and_then(|_| {
+            self.tile_manager.add_window(window_with_info)
         })
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
-        self.fullscreen_wm.remove_window(window).and_then(|_| {
-            // If remove_window succeeded in the underlying fullscreen_wm, we know for
-            // certain the window is/was present in this window manager
-            match self.tiles.iter().position(|w| *w == window) {
-                None => Err(StandardError::UnknownWindow(window)),
-                Some(i) => {
-                    self.tiles.remove(i);
-                    Ok(())
-                }
-            }
+        self.focus_manager.remove_window(window).and_then(|_| {
+            self.tile_manager.remove_window(window)
         })
     }
 
@@ -102,21 +171,21 @@ impl WindowManager for TilingWM<VerticalLayout> {
             windows: self.get_windows().iter()
                 // We know for sure the window argument in get_window_geometry is a managed window,
                 // because it comes directly from get_windows.
-                .map(|window| (*window, self.layout.get_window_geometry(*window, &self.get_screen(), &self.tiles).unwrap()))
+                .map(|window| (*window, self.tile_manager.get_window_geometry(*window).unwrap()))
                 .collect(),
         }
     }
 
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
-        self.fullscreen_wm.focus_window(window)
+        self.focus_manager.focus_window(window)
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
-        self.fullscreen_wm.cycle_focus(dir)
+        self.focus_manager.cycle_focus(dir)
     }
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
-        self.layout.get_window_geometry(window, &self.get_screen(), &self.tiles).and_then(|geometry| {
+        self.tile_manager.get_window_geometry(window).and_then(|geometry| {
             Ok(WindowWithInfo {
                 window: window,
                 geometry: geometry,
@@ -127,30 +196,25 @@ impl WindowManager for TilingWM<VerticalLayout> {
     }
 
     fn get_screen(&self) -> Screen {
-        self.fullscreen_wm.get_screen()
+        self.tile_manager.get_screen()
     }
 
     fn resize_screen(&mut self, screen: Screen) {
-        self.fullscreen_wm.resize_screen(screen)
+        self.tile_manager.resize_screen(screen)
     }
 }
 
-impl TilingSupport for TilingWM<VerticalLayout> {
+impl TilingSupport for TilingWM {
     fn get_master_window(&self) -> Option<Window> {
-        self.layout.get_master_window(&self.tiles)
+        self.tile_manager.get_master_window()
     }
 
     fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
-        self.layout.swap_with_master(window, &mut self.tiles).and_then(|_| {
-            self.focus_window(Some(window))
-        })
+        self.tile_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
     fn swap_windows(&mut self, dir: PrevOrNext){
-        self.get_focused_window().and_then(|window| {
-            self.layout.swap_windows(window, dir, &mut self.tiles);
-            Some(())
-        });
+        self.tile_manager.swap_windows(dir, &self.focus_manager)
     }
 }
 

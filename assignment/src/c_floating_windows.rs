@@ -49,7 +49,7 @@ pub struct FloatWM{
     /// FullscreenWM this FloatWM uses as a focus manager
     pub focus_manager: FullscreenWM,
     /// Tiling WM this FloatWM uses as a tile manager
-    pub tile_manager: TilingWM<VerticalLayout>,
+    pub tile_manager: TilingWM,
     /// FloatManager to manage the floating windows
     pub float_manager: FloatManager,
 }
