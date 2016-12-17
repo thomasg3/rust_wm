@@ -28,7 +28,8 @@ use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, Window
 use cplwm_api::wm::{WindowManager, TilingSupport};
 
 use wm_common::TilingLayout;
-use a_fullscreen_wm::{FullscreenWM, FullscreenWMError};
+use wm_common::error::StandardError;
+use a_fullscreen_wm::FullscreenWM;
 use std::collections::VecDeque;
 
 /// The public type.
@@ -52,8 +53,8 @@ pub struct TilingWM<T : TilingLayout>{
 
 
 impl WindowManager for TilingWM<VerticalLayout> {
-    /// The Error type is FullscreenWMError, since the errors are exactly the same.
-    type Error = FullscreenWMError;
+    /// The Error type is StandardError.
+    type Error = StandardError;
 
     /// constructor with given screen
     fn new(screen: Screen) -> TilingWM<VerticalLayout>  {
@@ -86,7 +87,7 @@ impl WindowManager for TilingWM<VerticalLayout> {
             // If remove_window succeeded in the underlying fullscreen_wm, we know for
             // certain the window is/was present in this window manager
             match self.tiles.iter().position(|w| *w == window) {
-                None => Err(FullscreenWMError::UnknownWindow(window)),
+                None => Err(StandardError::UnknownWindow(window)),
                 Some(i) => {
                     self.tiles.remove(i);
                     Ok(())
@@ -158,7 +159,7 @@ impl TilingSupport for TilingWM<VerticalLayout> {
 pub struct VerticalLayout {}
 
 impl TilingLayout for VerticalLayout {
-    type Error = FullscreenWMError;
+    type Error = StandardError;
 
     fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window>{
         return tiles.front().map(|w| *w)
@@ -168,12 +169,12 @@ impl TilingLayout for VerticalLayout {
         match self.get_master_window(tiles) {
             // There is no master window, so there are no windows, so the window argument can not be
             // known
-            None => Err(FullscreenWMError::UnknownWindow(window)),
+            None => Err(StandardError::UnknownWindow(window)),
             Some(_) => {
                 // search position of the window arg
                 match tiles.iter().position(|w| *w == window){
                     // the window argument is not managed by this window manager
-                    None => Err(FullscreenWMError::UnknownWindow(window)),
+                    None => Err(StandardError::UnknownWindow(window)),
                     Some(index) => {
                         tiles.swap_remove_front(index);
                         tiles.push_front(window);
@@ -198,7 +199,7 @@ impl TilingLayout for VerticalLayout {
         let only_master = tiles.len() <= 1;
         let master_tile_width = screen.width / if only_master { 1 } else { 2 };
         match tiles.iter().position(|w| *w == window) {
-            None => Err(FullscreenWMError::UnknownWindow(window)),
+            None => Err(StandardError::UnknownWindow(window)),
             Some(0) => Ok(Geometry {
                 x: 0,
                 y: 0,
@@ -261,7 +262,7 @@ mod vertical_layout_tests {
         // Initialize new VerticalLayout strategy
         let layout = VerticalLayout{};
         // Initialize empty tile Deque
-        let mut tiles = VecDeque::new();
+        let tiles = VecDeque::new();
 
         // make sure there is no geometry.
         assert!(layout.get_window_geometry(1, &SCREEN1, &tiles).is_err());
@@ -419,24 +420,6 @@ mod tests {
     static SCREEN: Screen = Screen {
         width: 800,
         height: 600,
-    };
-
-    // We define a static variable for the geometry of a fullscreen window.
-    // Note that it matches the dimensions of `SCREEN`.
-    static SCREEN_GEOM: Geometry = Geometry {
-        x: 0,
-        y: 0,
-        width: 800,
-        height: 600,
-    };
-
-    // We define a static variable for some random geometry that we will use
-    // when adding windows to a window manager.
-    static SOME_GEOM: Geometry = Geometry {
-        x: 10,
-        y: 10,
-        width: 100,
-        height: 100,
     };
 
 

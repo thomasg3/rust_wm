@@ -25,12 +25,6 @@
 //! COMMENTS: /
 //!
 
-
-// We import std::error and std::format so we can say error::Error instead of
-// std::error::Error, etc.
-use std::error;
-use std::fmt;
-
 // Import some other used types.
 use std::collections::{BTreeMap, VecDeque};
 
@@ -38,6 +32,7 @@ use std::collections::{BTreeMap, VecDeque};
 // (defined in the api folder).
 use cplwm_api::types::{FloatOrTile, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::WindowManager;
+use wm_common::error::StandardError;
 
 /// You are free to choose the name for your window manager. As we will use
 /// automated tests when grading your assignment, indicate here the name of
@@ -72,55 +67,12 @@ pub struct FullscreenWM {
     pub window_to_info: BTreeMap<Window, WindowWithInfo>,
 }
 
-/// The errors that this window manager can return.
-///
-/// For more information about why you need this, read the documentation of
-/// the associated [Error] type of the `WindowManager` trait.
-///
-/// In the code below, we would like to return an error when we are asked to
-/// do something with a window that we do not manage, so we define an enum
-/// `FullscreenWMError` with one variant: `UnknownWindow`.
-///
-/// Feel free to add or remove variants from this enum. You may also replace
-/// it with a type or struct if you wish to do so.
-///
-/// [Error]: ../../cplwm_api/wm/trait.WindowManager.html#associatedtype.Error
-#[derive(Debug)]
-pub enum FullscreenWMError {
-    /// This window is not known by the window manager.
-    UnknownWindow(Window),
-    /// This window is already managed by the window manager.
-    AlReadyManagedWindow(Window),
-}
 
-// This code is explained in the documentation of the associated [Error] type
-// of the `WindowManager` trait.
-impl fmt::Display for FullscreenWMError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            FullscreenWMError::UnknownWindow(ref window) => write!(f, "Unknown window: {}", window),
-            FullscreenWMError::AlReadyManagedWindow(ref window) => {
-                write!(f, "Already managed window: {}", window)
-            }
-        }
-    }
-}
-
-// This code is explained in the documentation of the associated [Error] type
-// of the `WindowManager` trait.
-impl error::Error for FullscreenWMError {
-    fn description(&self) -> &'static str {
-        match *self {
-            FullscreenWMError::UnknownWindow(_) => "Unknown window",
-            FullscreenWMError::AlReadyManagedWindow(_) => "Already managed window",
-        }
-    }
-}
 
 // Now we start implementing our window manager
 impl WindowManager for FullscreenWM {
-    /// We use `FullscreenWMError` as our `Error` type.
-    type Error = FullscreenWMError;
+    /// We use `StandardError` as our `Error` type.
+    type Error = StandardError;
 
     /// The constructor is straightforward.
     ///
@@ -163,7 +115,7 @@ impl WindowManager for FullscreenWM {
             self.window_to_info.insert(window_with_info.window, window_with_info);
             Ok(())
         } else {
-            Err(FullscreenWMError::AlReadyManagedWindow(window_with_info.window))
+            Err(StandardError::AlReadyManagedWindow(window_with_info.window))
         }
     }
 
@@ -183,7 +135,7 @@ impl WindowManager for FullscreenWM {
             None => {}
         }
         match self.windows.iter().position(|w| *w == window) {
-            None => Err(FullscreenWMError::UnknownWindow(window)),
+            None => Err(StandardError::UnknownWindow(window)),
             Some(i) => {
                 let removed_window = self.windows.remove(i);
                 // after looking up the index of a window, finding it, and then removing said
@@ -245,7 +197,7 @@ impl WindowManager for FullscreenWM {
             None => Ok(()),
             Some(window_value) => {
                 match self.windows.iter().position(|w| *w == window_value) {
-                    None => Err(FullscreenWMError::UnknownWindow(window_value)),
+                    None => Err(StandardError::UnknownWindow(window_value)),
                     Some(i) => {
                         self.windows.remove(i);
                         self.focused_window = window;
@@ -285,7 +237,7 @@ impl WindowManager for FullscreenWM {
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
         let window_info = self.window_to_info.get(&window);
         match window_info {
-            None => Err(FullscreenWMError::UnknownWindow(window)),
+            None => Err(StandardError::UnknownWindow(window)),
             Some(w) => {
                 Ok(WindowWithInfo {
                     window: w.window,
