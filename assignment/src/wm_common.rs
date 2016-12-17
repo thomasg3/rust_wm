@@ -62,6 +62,56 @@ pub mod error {
         }
     }
 
+    impl StandardError {
+        /// convert a standard error in a FloatWMError
+        pub fn to_float_error(&self) -> FloatWMError{
+            match *self {
+                StandardError::UnknownWindow(w) => FloatWMError::UnknownWindow(w),
+                StandardError::AlReadyManagedWindow(w) => FloatWMError::AlReadyManagedWindow(w),
+            }
+        }
+    }
+
+
+    /// A simple StandardError for all WindowManagers
+    #[derive(Debug)]
+    pub enum FloatWMError {
+        /// This window is not known by the window manager.
+        UnknownWindow(Window),
+        /// This window is already managed by the window manager.
+        AlReadyManagedWindow(Window),
+        /// This window is not floating.
+        NotFloatingWindow(Window),
+    }
+
+    // This code is explained in the documentation of the associated [Error] type
+    // of the `WindowManager` trait.
+    impl fmt::Display for FloatWMError {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                FloatWMError::UnknownWindow(ref window) => write!(f, "Unknown window: {}", window),
+                FloatWMError::AlReadyManagedWindow(ref window) => {
+                    write!(f, "Already managed window: {}", window)
+                },
+                FloatWMError::NotFloatingWindow(ref window) => {
+                    write!(f, "Not floating window: {}", window)
+                },
+            }
+        }
+    }
+
+    // This code is explained in the documentation of the associated [Error] type
+    // of the `WindowManager` trait.
+    impl error::Error for FloatWMError {
+        fn description(&self) -> &'static str {
+            match *self {
+                FloatWMError::UnknownWindow(_) => "Unknown window",
+                FloatWMError::AlReadyManagedWindow(_) => "Already managed window",
+                FloatWMError::NotFloatingWindow(_) => "Not Floating window",
+            }
+        }
+    }
+
 }
 
 
