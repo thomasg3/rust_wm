@@ -131,6 +131,68 @@ pub mod error {
 /// Module which contains all the actual code to teŒst certain types of WindowManagers
 pub mod tests {
 
+
+    /// Module for tests concerning window managers which support aswell as floating as tiled windows
+    pub mod float_and_tile_support {
+        use cplwm_api::wm::{TilingSupport,FloatSupport};
+        use cplwm_api::types::*;
+
+        static SOME_GEOM_A: Geometry = Geometry {
+            x: 10,
+            y: 10,
+            width: 100,
+            height: 100,
+        };
+
+        static SOME_GEOM_B: Geometry = Geometry {
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+        };
+
+
+        /// swapping a floating window with a master when there is no master should do nothing
+        pub fn test_swapping_master_with_floating_window_no_tiles<T: TilingSupport+FloatSupport>(mut wm: T){
+            assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM_B)).is_ok());
+
+            assert!(wm.swap_with_master(2).is_ok());
+            assert!(wm.get_master_window().is_none());
+            assert!(wm.is_floating(2));
+            // check geometries?
+        }
+
+        /// test swapping floating window with master tile works as expected: current master -> floating, floating -> master
+        pub fn test_swapping_master_with_floating_window<T: TilingSupport+FloatSupport>(mut wm: T){
+            assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM_B)).is_ok());
+
+            assert!(wm.swap_with_master(2).is_ok());
+            assert_eq!(2, wm.get_master_window().unwrap());
+            assert!(wm.is_floating(1));
+            // check geometries?
+        }
+
+        /// test swap_windows does nothing for a floating window
+        pub fn test_swap_windows_on_floating<T: TilingSupport+FloatSupport>(mut wm: T){
+            assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM_B)).is_ok());
+
+            wm.swap_windows(PrevOrNext::Prev);
+
+            assert_eq!(1, wm.get_master_window().unwrap());
+            assert!(wm.is_floating(2));
+            assert_eq!(2, wm.get_focused_window().unwrap());
+
+            wm.swap_windows(PrevOrNext::Next);
+
+            assert_eq!(1, wm.get_master_window().unwrap());
+            assert!(wm.is_floating(2));
+            assert_eq!(2, wm.get_focused_window().unwrap());
+        }
+
+    }
+
     /// Module for all test concerning FloatSupport trait
     pub mod float_support {
         use cplwm_api::wm::FloatSupport;

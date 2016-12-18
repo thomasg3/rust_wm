@@ -149,12 +149,25 @@ impl TilingSupport for FloatWM {
     }
 
     fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
-        self.tile_manager.swap_with_master(window, &mut self.focus_manager)
-            .map_err(|error| error.to_float_error())
+        if self.is_floating(window) {
+            self.toggle_floating(window).and_then(|_| {
+                let master = self.get_master_window().unwrap(); // unwrap is possible since there
+                // is bound to be at least one tile after calling toggle_float on a floating window
+                // if there is one tile, there is one master
+                self.tile_manager.swap_with_master(window, &mut self.focus_manager)
+                    .map_err(|error| error.to_float_error())
+                    .and_then(|_| {
+                        self.toggle_floating(master)
+                    })
+            })
+        } else {
+            self.tile_manager.swap_with_master(window, &mut self.focus_manager)
+                .map_err(|error| error.to_float_error())
+        }
     }
 
     fn swap_windows(&mut self, dir: PrevOrNext){
-        self.tile_manager.swap_windows(dir, &mut self.focus_manager)
+        self.tile_manager.swap_windows(dir, &self.focus_manager)
     }
 }
 
@@ -297,6 +310,7 @@ mod tests {
     use wm_common::tests::window_manager;
     use wm_common::tests::tiling_support;
     use wm_common::tests::float_support;
+    use wm_common::tests::float_and_tile_support;
 
     // We have to import `FloatWM` from the super module.
     use super::FloatWM;
@@ -441,4 +455,33 @@ mod tests {
         // use the common test
         float_support::test_focus_floating_window_order(wm);
     }
+
+    #[test]
+    fn test_swapping_master_with_floating_window_no_tiles(){
+        // Initialize test with a new window manager
+        let wm = FloatWM::new(SCREEN);
+        // use the common test
+        float_and_tile_support::test_swapping_master_with_floating_window_no_tiles(wm);
+    }
+
+    #[test]
+    fn test_swapping_master_with_floating_window(){
+        // Initialize test with a new window manager
+        let wm = FloatWM::new(SCREEN);
+        // use the common test
+        float_and_tile_support::test_swapping_master_with_floating_window(wm);
+    }
+
+    #[test]
+    fn test_swap_windows_on_floating(){
+        // Initialize test with a new window manager
+        let wm = FloatWM::new(SCREEN);
+        // use the common test
+        float_and_tile_support::test_swap_windows_on_floating(wm);
+    }
+
+
+
+
+
 }
