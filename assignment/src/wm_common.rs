@@ -22,6 +22,17 @@ pub trait TilingLayout: Encodable + Decodable + Debug + Clone  {
     fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>;
 }
 
+/// Trait which all Managers should have
+pub trait Manager {
+    /// Return all windows managed by this specific manager
+    fn get_windows(&self) -> Vec<Window>;
+
+    /// Returns true if window in get_windows() Vec, otherwise false
+    fn is_managed(&self, window: Window) -> bool {
+        self.get_windows().contains(&window)
+    }
+}
+
 /// Module for the used error types
 pub mod error {
     use cplwm_api::types::*;
@@ -119,6 +130,118 @@ pub mod error {
 
 /// Module which contains all the actual code to teŒst certain types of WindowManagers
 pub mod tests {
+
+    /// Module for all test concerning FloatSupport trait
+    pub mod float_support {
+        use cplwm_api::wm::FloatSupport;
+        use cplwm_api::types::*;
+
+        static SOME_GEOM: Geometry = Geometry {
+            x: 10,
+            y: 10,
+            width: 100,
+            height: 100,
+        };
+
+        /// Test the get_floating_windows functionality
+        pub fn test_get_floating_windows<F: FloatSupport>(mut wm: F){
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(3, SOME_GEOM)).is_ok());
+
+            let floaters = wm.get_floating_windows();
+
+            assert!(floaters.contains(&1));
+            assert!(floaters.contains(&2));
+            assert!(floaters.contains(&3));
+            assert!(!floaters.contains(&4));
+        }
+
+        /// Test toggle_floating
+        pub fn test_toggle_floating<F: FloatSupport>(mut wm: F){
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+
+            assert!(wm.is_floating(1));
+            assert!(!wm.is_floating(2));
+
+            assert!(wm.toggle_floating(1).is_ok());
+            assert!(!wm.is_floating(1));
+
+            assert!(wm.toggle_floating(2).is_ok());
+            assert!(wm.is_floating(2));
+
+            assert!(wm.toggle_floating(1).is_ok());
+            assert!(wm.is_floating(1));
+
+            assert!(wm.toggle_floating(2).is_ok());
+            assert!(!wm.is_floating(2));
+
+            assert!(wm.toggle_floating(3).is_err());
+        }
+
+        /// Test set_window_geometry
+        pub fn test_set_window_geometry<F: FloatSupport>(mut wm: F){
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+
+            assert_eq!(SOME_GEOM, wm.get_window_info(1).unwrap().geometry);
+
+            let other_geometry = Geometry {
+                x: 20,
+                y: 30,
+                width: 300,
+                height: 200,
+            };
+
+            assert!(wm.set_window_geometry(1, other_geometry).is_ok());
+            assert_eq!(other_geometry, wm.get_window_info(1).unwrap().geometry);
+
+            assert!(wm.set_window_geometry(2, other_geometry).is_err());
+
+            assert!(wm.add_window(WindowWithInfo::new_tiled(3, SOME_GEOM)).is_ok());
+            assert!(wm.set_window_geometry(3, other_geometry).is_err());
+        }
+
+        /// Test to check floating windows are above tiled windows
+        pub fn test_window_layout_order<F: FloatSupport>(mut wm: F){
+            assert_eq!(WindowLayout::new(), wm.get_window_layout());
+
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(3, SOME_GEOM)).is_ok());
+
+            let window_layout = wm.get_window_layout().windows;
+            assert_eq!(3, window_layout[0].0);
+            assert_eq!(1, window_layout[1].0);
+
+            assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(4, SOME_GEOM)).is_ok());
+
+            let window_layout = wm.get_window_layout().windows;
+            assert_eq!(3, window_layout[0].0);
+            assert_eq!(4, window_layout[1].0);
+            assert_eq!(1, window_layout[2].0);
+            assert_eq!(2, window_layout[3].0);
+        }
+
+        /// Test to check focusing on a floating window puts it on top
+        pub fn test_focus_floating_window_order<F: FloatSupport>(mut wm: F){
+            assert_eq!(WindowLayout::new(), wm.get_window_layout());
+
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM)).is_ok());
+
+            let window_layout = wm.get_window_layout().windows;
+            assert_eq!(1, window_layout[0].0);
+            assert_eq!(2, window_layout[1].0);
+
+            assert!(wm.focus_window(Some(1)).is_ok());
+
+            let window_layout = wm.get_window_layout().windows;
+            assert_eq!(2, window_layout[0].0);
+            assert_eq!(1, window_layout[1].0);
+        }
+
+    }
 
     /// Module for all tests concerning the TilingSupport trait.
     pub mod tiling_support {

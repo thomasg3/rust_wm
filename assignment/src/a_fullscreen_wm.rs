@@ -32,6 +32,7 @@ use std::collections::{BTreeMap, VecDeque};
 // (defined in the api folder).
 use cplwm_api::types::{FloatOrTile, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::WindowManager;
+use wm_common::Manager;
 use wm_common::error::StandardError;
 
 /// You are free to choose the name for your window manager. As we will use
@@ -74,24 +75,24 @@ pub struct FocusManager {
     pub focused_window: Option<Window>,
 }
 
-impl FocusManager {
-
-    /// A new, empty FocusManager
-    pub fn new() -> FocusManager {
-        FocusManager {
-            windows: VecDeque::new(),
-            focused_window: None,
-        }
-    }
-
-    /// All windows managed by this manager
-    pub fn get_windows(&self) -> Vec<Window> {
+impl Manager for FocusManager {
+    fn get_windows(&self) -> Vec<Window> {
         let mut windows: Vec<Window> = self.windows.iter().map(|w| *w).collect();
         match self.focused_window {
             Some(w) => windows.push(w),
             None => {}
         }
         return windows;
+    }
+}
+
+impl FocusManager {
+    /// A new, empty FocusManager
+    pub fn new() -> FocusManager {
+        FocusManager {
+            windows: VecDeque::new(),
+            focused_window: None,
+        }
     }
 
     /// The currently focused window
@@ -101,7 +102,7 @@ impl FocusManager {
 
     /// Add a window
     pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
-        if !self.get_windows().contains(&window_with_info.window) {
+        if !self.is_managed(window_with_info.window) {
             match self.focused_window {
                 Some(w) => self.windows.push_back(w),
                 None => {}
