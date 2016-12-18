@@ -159,7 +159,7 @@ pub mod tests {
             assert!(wm.swap_with_master(2).is_ok());
             assert!(wm.get_master_window().is_none());
             assert!(wm.is_floating(2));
-            // check geometries?
+            assert_eq!(SOME_GEOM_B, wm.get_window_info(2).unwrap().geometry);
         }
 
         /// test swapping floating window with master tile works as expected: current master -> floating, floating -> master
@@ -170,7 +170,8 @@ pub mod tests {
             assert!(wm.swap_with_master(2).is_ok());
             assert_eq!(2, wm.get_master_window().unwrap());
             assert!(wm.is_floating(1));
-            // check geometries?
+            assert_eq!(SOME_GEOM_A, wm.get_window_info(1).unwrap().geometry);
+
         }
 
         /// test swap_windows does nothing for a floating window
@@ -205,6 +206,20 @@ pub mod tests {
             height: 100,
         };
 
+        static SOME_GEOM_A: Geometry = Geometry {
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 400,
+        };
+
+        static SOME_GEOM_B: Geometry = Geometry {
+            x: 0,
+            y: 10,
+            width: 133,
+            height: 100,
+        };
+
         /// Test the get_floating_windows functionality
         pub fn test_get_floating_windows<F: FloatSupport>(mut wm: F){
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
@@ -221,9 +236,11 @@ pub mod tests {
 
         /// Test toggle_floating
         pub fn test_toggle_floating<F: FloatSupport>(mut wm: F){
-            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
-            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM_B)).is_ok());
 
+            assert_eq!(SOME_GEOM_A, wm.get_window_info(1).unwrap().geometry);
+            
             assert!(wm.is_floating(1));
             assert!(!wm.is_floating(2));
 
@@ -232,9 +249,13 @@ pub mod tests {
 
             assert!(wm.toggle_floating(2).is_ok());
             assert!(wm.is_floating(2));
+            assert_eq!(SOME_GEOM_B, wm.get_window_info(2).unwrap().geometry);
+
 
             assert!(wm.toggle_floating(1).is_ok());
             assert!(wm.is_floating(1));
+            assert_eq!(SOME_GEOM_A, wm.get_window_info(1).unwrap().geometry);
+
 
             assert!(wm.toggle_floating(2).is_ok());
             assert!(!wm.is_floating(2));
