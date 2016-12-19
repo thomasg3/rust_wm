@@ -194,8 +194,72 @@ impl MinimiseSupport for MinimiseWM {
     }
 }
 
+/// Manager to manage the minimised windows and a LayoutManager
+#[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
+pub struct MinimiseManager<LM : LayoutManager<Error=FloatWMError>> {
+    /// The wrapped layout manager
+    pub layout_manager: LM,
+    /// The helper for the minimised windows
+    pub minimise_assistant_manager: MinimiseAssistantManager,
+}
 
-/// Manager to manage the minimized windows
+impl<LM : LayoutManager<Error=FloatWMError>> Manager for MinimiseManager<LM> {
+    type Error = FloatWMError;
+
+    fn get_windows(&self) -> Vec<Window> {
+        let mut windows = self.layout_manager.get_windows();
+        windows.extend(self.minimise_assistant_manager.get_windows());
+        windows
+    }
+
+    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
+        self.layout_manager.add_window(window_with_info)
+    }
+
+    fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
+        self.layout_manager.remove_window(window)
+            .or_else(|_| self.minimise_assistant_manager.remove_window(window))
+    }
+}
+
+impl<LM : LayoutManager<Error=FloatWMError>> LayoutManager for MinimiseManager<LM> {
+    fn get_window_layout(&self) -> Vec<(Window, Geometry)>{
+        self.layout_manager.get_window_layout()
+    }
+
+    fn focus_shifted(&mut self, window: Option<Window>) -> Result<(), Self::Error>{
+        self.layout_manager.focus_shifted(window)
+    }
+
+    fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error>{
+        self.layout_manager.get_window_info(window)
+            .or_else(|_| self.minimise_assistant_manager.get_window_info(window))
+    }
+
+    fn get_screen(&self) -> Screen{
+        self.layout_manager.get_screen()
+    }
+
+    fn resize_screen(&mut self, screen: Screen){
+        self.layout_manager.resize_screen(screen);
+    }
+}
+
+impl<LM : LayoutManager<Error=FloatWMError>> MinimiseManager<LM> {
+    fn new(layout_manager: LM) -> MinimiseManager<LM>{
+        MinimiseManager {
+            layout_manager: layout_manager,
+            minimise_assistant_manager: MinimiseAssistantManager::new(),
+        }
+    }
+
+
+}
+
+
+
+
+/// Manager to manage the minimised windows
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MinimiseAssistantManager {
     /// Map to keep the window and it's last info
@@ -232,8 +296,6 @@ impl MinimiseAssistantManager {
             minis: HashMap::new(),
         }
     }
-
-
 
     /// get specific window_info
     pub fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, FloatWMError> {
