@@ -104,7 +104,8 @@ impl WindowManager for MinimiseWM {
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
-        self.focus_manager.cycle_focus(dir)
+        self.focus_manager.cycle_focus(dir);
+        self.minimise_manager.focus_shifted(self.focus_manager.get_focused_window()).is_ok();
     }
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
@@ -192,7 +193,16 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> LayoutManager f
     }
 
     fn focus_shifted(&mut self, window: Option<Window>) -> Result<(), Self::Error>{
-        self.layout_manager.focus_shifted(window)
+        match window {
+            None => Ok(()),
+            Some(w) => if self.minimise_assistant_manager.is_managed(w) {
+                self.minimise_assistant_manager.get_window_info(w)
+                    .and_then(|info| self.minimise_assistant_manager.remove_window(w)
+                        .and_then(|_| self.layout_manager.add_window(info)))
+                    } else {
+                        Ok(())
+                    }
+        }.and_then(|_| self.layout_manager.focus_shifted(window))
     }
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error>{
@@ -471,6 +481,11 @@ mod tests {
     }
 
     #[test]
+    fn test_toggle_floating_focus(){
+        float_and_tile_support::test_toggle_floating_focus::<MinimiseWM>();
+    }
+
+    #[test]
     fn test_minimise() {
         minimise_support::test_minimise::<MinimiseWM>();
     }
@@ -493,6 +508,11 @@ mod tests {
     #[test]
     fn test_minimise_order() {
         minimise_support::test_minimise_order::<MinimiseWM>();
+    }
+
+    #[test]
+    fn test_minimise_state_after_cycle_focus() {
+        minimise_support::test_minimise_state_after_cycle_focus::<MinimiseWM>();
     }
 
 

@@ -299,6 +299,22 @@ pub mod tests {
             assert!(!wm.is_minimised(2));
         }
 
+        ///Test to check whether cycle focus will maximize minimised windows
+        pub fn test_minimise_state_after_cycle_focus<T: MinimiseSupport>(){
+            let mut wm = T::new(SCREEN);
+
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+
+            assert_eq!(Some(2), wm.get_focused_window());
+
+            assert!(wm.toggle_minimised(1).is_ok());
+
+            wm.cycle_focus(PrevOrNext::Next);
+
+            assert!(!wm.is_minimised(1));
+        }
+
         /// Test to check minimise keeps the window info of a float exactly the same
         pub fn test_minimise_of_floating_window<T: FloatSupport+MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
@@ -354,6 +370,16 @@ pub mod tests {
             width: 100,
             height: 100,
         };
+
+        /// toggle_floating on a window should also focus it
+        pub fn test_toggle_floating_focus<T: TilingSupport+FloatSupport>(){
+            let mut wm = T::new(SCREEN);
+            assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM_A)).is_ok());
+            assert_eq!(Some(2), wm.get_focused_window());
+            assert!(wm.toggle_floating(1).is_ok());
+            assert_eq!(Some(1), wm.get_focused_window());
+        }
 
         /// Test: swapping tiled windows back and forth should not do anything if a floating window
         /// is focused

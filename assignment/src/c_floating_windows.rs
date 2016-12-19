@@ -102,7 +102,8 @@ impl WindowManager for FloatWM {
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
-        self.focus_manager.cycle_focus(dir)
+        self.focus_manager.cycle_focus(dir);
+        self.float_or_tile_manager.focus_shifted(self.focus_manager.get_focused_window()).is_ok();
     }
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
@@ -531,10 +532,8 @@ mod tests {
         float_and_tile_support::test_swap_windows_with_float_focused::<FloatWM>();
     }
 
-
-
-
-
-
-
+    #[test]
+    fn test_toggle_floating_focus(){
+        float_and_tile_support::test_toggle_floating_focus::<FloatWM>();
+    }
 }
