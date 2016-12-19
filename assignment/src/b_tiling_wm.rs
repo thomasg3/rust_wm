@@ -190,7 +190,7 @@ impl<TL> LayoutManager for TileManager<TL> where TL : TilingLayout<Error=Standar
         })
     }
 
-    fn focus_shifted(&mut self, window: Option<Window>) -> Result<(), Self::Error>{
+    fn focus_shifted(&mut self, _: Option<Window>) -> Result<(), Self::Error>{
         // When the focus shifts, this LayoutManager does not need to do anything
         Ok(())
     }
@@ -493,111 +493,64 @@ mod vertical_layout_tests {
 
 #[cfg(test)]
 mod tests {
-
     use wm_common::tests::window_manager;
     use wm_common::tests::tiling_support;
-
-    // We have to import `TilingWM` from the super module.
     use super::TilingWM;
     use super::VerticalLayout;
-    // We have to repeat the imports we did in the super module.
-    use cplwm_api::wm::WindowManager;
-    use cplwm_api::types::*;
-
-    // We define a static variable for the screen we will use in the tests.
-    // You can just as well define it as a local variable in your tests.
-    static SCREEN: Screen = Screen {
-        width: 800,
-        height: 600,
-    };
-
 
     #[test]
     fn test_empty_tiling_wm(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_empty_wm(wm, SCREEN);
+        window_manager::test_empty_wm::<TilingWM>();
     }
 
     #[test]
     fn test_adding_and_removing_some_windows(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_adding_and_removing_windows(wm);
+        window_manager::test_adding_and_removing_windows::<TilingWM>();
     }
 
     #[test]
     fn test_focus_and_unfocus_window() {
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_focus_and_unfocus_window(wm);
+        window_manager::test_focus_and_unfocus_window::<TilingWM>();
     }
 
     #[test]
     fn test_cycle_focus_none_and_one_window() {
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_none_and_one_window(wm);
+        window_manager::test_cycle_focus_none_and_one_window::<TilingWM>();
     }
 
     #[test]
     fn test_cycle_focus_multiple_windows() {
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_multiple_windows(wm);
+        window_manager::test_cycle_focus_multiple_windows::<TilingWM>();
     }
 
     #[test]
     fn test_get_window_info(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_get_window_info(wm);
+        window_manager::test_get_window_info::<TilingWM>();
     }
 
     #[test]
     fn test_resize_screen(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use common test
-        window_manager::test_resize_screen(wm, SCREEN);
+        window_manager::test_resize_screen::<TilingWM>();
     }
 
     #[test]
     fn test_get_master_window(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_master_tile(wm);
+        tiling_support::test_master_tile::<TilingWM>();
     }
 
     #[test]
     fn test_swap_with_master_window(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_swap_with_master(wm);
+        tiling_support::test_swap_with_master::<TilingWM>();
     }
 
 
     #[test]
     fn test_swap_windows(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_swap_windows(wm, VerticalLayout{});
+        tiling_support::test_swap_windows::<TilingWM, VerticalLayout>(VerticalLayout{});
     }
 
     #[test]
     fn test_tiling_layout(){
-        // Initialize test with a new window manager
-        let wm = TilingWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_get_window_info(wm, VerticalLayout{});
+        tiling_support::test_get_window_info::<TilingWM, VerticalLayout>(VerticalLayout{});
     }
 }

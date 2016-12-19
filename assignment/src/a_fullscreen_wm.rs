@@ -202,7 +202,7 @@ pub struct FocusManager {
 
 impl Manager for FocusManager {
     type Error = StandardError;
-    
+
     fn get_windows(&self) -> Vec<Window> {
         let mut windows: Vec<Window> = self.windows.iter().map(|w| *w).collect();
         match self.focused_window {
@@ -311,75 +311,41 @@ impl FocusManager {
 
 #[cfg(test)]
 mod tests {
-
-    // We have to import `FullscreenWM` from the super module.
-    use super::FullscreenWM;
-    // We have to repeat the imports we did in the super module.
-    use cplwm_api::wm::WindowManager;
-    use cplwm_api::types::*;
     use wm_common::tests::window_manager;
-
-    // We define a static variable for the screen we will use in the tests.
-    // You can just as well define it as a local variable in your tests.
-    static SCREEN: Screen = Screen {
-        width: 800,
-        height: 600,
-    };
+    use super::FullscreenWM;
 
     #[test]
     fn test_empty_tiling_wm(){
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_empty_wm(wm, SCREEN);
+        window_manager::test_empty_wm::<FullscreenWM>();
     }
 
     #[test]
     fn test_adding_and_removing_some_windows(){
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_adding_and_removing_windows(wm);
+        window_manager::test_adding_and_removing_windows::<FullscreenWM>();
     }
 
     #[test]
     fn test_focus_and_unfocus_window() {
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_focus_and_unfocus_window(wm);
+        window_manager::test_focus_and_unfocus_window::<FullscreenWM>();
     }
 
     #[test]
     fn test_cycle_focus_none_and_one_window() {
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_none_and_one_window(wm);
+        window_manager::test_cycle_focus_none_and_one_window::<FullscreenWM>();
     }
 
     #[test]
     fn test_cycle_focus_multiple_windows() {
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_multiple_windows(wm);
+        window_manager::test_cycle_focus_multiple_windows::<FullscreenWM>();
     }
 
     #[test]
     fn test_get_window_info(){
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_get_window_info(wm);
+        window_manager::test_get_window_info::<FullscreenWM>();
     }
 
     #[test]
     fn test_resize_screen(){
-        // Initialize test with a new window manager
-        let wm = FullscreenWM::new(SCREEN);
-        // use common test
-        window_manager::test_resize_screen(wm, SCREEN);
+        window_manager::test_resize_screen::<FullscreenWM>();
     }
-
 }

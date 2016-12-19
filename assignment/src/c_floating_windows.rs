@@ -274,36 +274,40 @@ impl<T: TilingLayout<Error=StandardError>> FloatAndTileTrait for FloatOrTileMana
 
     /// toggle floating on window
     fn toggle_floating(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError>{
-        if self.float_manager.is_managed(window) {
-            self.float_manager.get_window_info(window).and_then(|window_with_info| {
-                self.float_manager.remove_window(window).and_then(|_| {
-                    self.tile_manager.add_window(WindowWithInfo{
-                        window: window_with_info.window,
-                        geometry: window_with_info.geometry,
-                        float_or_tile: FloatOrTile::Tile,
-                        fullscreen: window_with_info.fullscreen,
-                    })
-                        .map_err(|error| error.to_float_error())
-                })
-            })
-        } else if self.tile_manager.is_managed(window) {
-            self.tile_manager.get_original_window_info(window)
-                .map_err(|error| error.to_float_error())
-                .and_then(|window_with_info| {
-                    self.tile_manager.remove_window(window)
-                        .map_err(|error| error.to_float_error())
-                        .and_then(|_| {
-                            self.float_manager.add_window(WindowWithInfo{
+        focus_manager.focus_window(Some(window))
+            .map_err(|error| error.to_float_error())
+            .and_then(|_| {
+                if self.float_manager.is_managed(window) {
+                    self.float_manager.get_window_info(window).and_then(|window_with_info| {
+                        self.float_manager.remove_window(window).and_then(|_| {
+                            self.tile_manager.add_window(WindowWithInfo{
                                 window: window_with_info.window,
                                 geometry: window_with_info.geometry,
-                                float_or_tile: FloatOrTile::Float,
+                                float_or_tile: FloatOrTile::Tile,
                                 fullscreen: window_with_info.fullscreen,
                             })
+                                .map_err(|error| error.to_float_error())
                         })
-                })
-        } else {
-            Err(FloatWMError::UnknownWindow(window))
-        }
+                    })
+                } else if self.tile_manager.is_managed(window) {
+                    self.tile_manager.get_original_window_info(window)
+                        .map_err(|error| error.to_float_error())
+                        .and_then(|window_with_info| {
+                            self.tile_manager.remove_window(window)
+                                .map_err(|error| error.to_float_error())
+                                .and_then(|_| {
+                                    self.float_manager.add_window(WindowWithInfo{
+                                        window: window_with_info.window,
+                                        geometry: window_with_info.geometry,
+                                        float_or_tile: FloatOrTile::Float,
+                                        fullscreen: window_with_info.fullscreen,
+                                    })
+                                })
+                        })
+                } else {
+                    Err(FloatWMError::UnknownWindow(window))
+                }
+            })
     }
 }
 
@@ -414,178 +418,107 @@ impl FloatManager {
 
 #[cfg(test)]
 mod tests {
-
     use wm_common::tests::window_manager;
     use wm_common::tests::tiling_support;
     use wm_common::tests::float_support;
     use wm_common::tests::float_and_tile_support;
-
-    // We have to import `FloatWM` from the super module.
     use super::FloatWM;
     use b_tiling_wm::VerticalLayout;
-    // We have to repeat the imports we did in the super module.
-    use cplwm_api::wm::WindowManager;
-    use cplwm_api::types::*;
-
-    // We define a static variable for the screen we will use in the tests.
-    // You can just as well define it as a local variable in your tests.
-    static SCREEN: Screen = Screen {
-        width: 800,
-        height: 600,
-    };
-
 
     #[test]
     fn test_empty_tiling_wm(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_empty_wm(wm, SCREEN);
+        window_manager::test_empty_wm::<FloatWM>();
     }
 
     #[test]
     fn test_adding_and_removing_some_windows(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_adding_and_removing_windows(wm);
+        window_manager::test_adding_and_removing_windows::<FloatWM>();
     }
 
     #[test]
     fn test_focus_and_unfocus_window() {
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_focus_and_unfocus_window(wm);
+        window_manager::test_focus_and_unfocus_window::<FloatWM>();
     }
 
     #[test]
     fn test_cycle_focus_none_and_one_window() {
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_none_and_one_window(wm);
+        window_manager::test_cycle_focus_none_and_one_window::<FloatWM>();
     }
 
     #[test]
     fn test_cycle_focus_multiple_windows() {
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_multiple_windows(wm);
+        window_manager::test_cycle_focus_multiple_windows::<FloatWM>();
     }
 
     #[test]
     fn test_get_window_info(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_get_window_info(wm);
+        window_manager::test_get_window_info::<FloatWM>();
     }
 
     #[test]
     fn test_resize_screen(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use common test
-        window_manager::test_resize_screen(wm, SCREEN);
+        window_manager::test_resize_screen::<FloatWM>();
     }
 
     #[test]
     fn test_get_master_window(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_master_tile(wm);
+        tiling_support::test_master_tile::<FloatWM>();
     }
 
     #[test]
     fn test_swap_with_master_window(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_swap_with_master(wm);
+        tiling_support::test_swap_with_master::<FloatWM>();
     }
 
 
     #[test]
     fn test_swap_windows(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_swap_windows(wm, VerticalLayout{});
+        tiling_support::test_swap_windows::<FloatWM, VerticalLayout>(VerticalLayout{});
     }
 
     #[test]
     fn test_tiling_layout(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_get_window_info(wm, VerticalLayout{});
+        tiling_support::test_get_window_info::<FloatWM, VerticalLayout>(VerticalLayout{});
     }
 
     #[test]
     fn test_get_floating_windows(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_support::test_get_floating_windows(wm);
+        float_support::test_get_floating_windows::<FloatWM>();
     }
 
     #[test]
     fn test_toggle_floating(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_support::test_toggle_floating(wm);
+        float_support::test_toggle_floating::<FloatWM>();
     }
 
     #[test]
     fn test_set_window_geometry(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_support::test_set_window_geometry(wm);
+        float_support::test_set_window_geometry::<FloatWM>();
     }
 
     #[test]
     fn test_window_layout_order(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_support::test_window_layout_order(wm);
+        float_support::test_window_layout_order::<FloatWM>();
     }
 
     #[test]
     fn test_focus_floating_window_order(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_support::test_focus_floating_window_order(wm);
+        float_support::test_focus_floating_window_order::<FloatWM>();
     }
 
     #[test]
     fn test_swapping_master_with_floating_window_no_tiles(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_and_tile_support::test_swapping_master_with_floating_window_no_tiles(wm);
+        float_and_tile_support::test_swapping_master_with_floating_window_no_tiles::<FloatWM>();
     }
 
     #[test]
     fn test_swapping_master_with_floating_window(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_and_tile_support::test_swapping_master_with_floating_window(wm);
+        float_and_tile_support::test_swapping_master_with_floating_window::<FloatWM>();
     }
 
     #[test]
     fn test_swap_windows_on_floating(){
-        // Initialize test with a new window manager
-        let wm = FloatWM::new(SCREEN);
-        // use the common test
-        float_and_tile_support::test_swap_windows_on_floating(wm);
+        float_and_tile_support::test_swap_windows_on_floating::<FloatWM>();
     }
 
 

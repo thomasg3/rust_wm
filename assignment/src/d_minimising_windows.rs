@@ -29,11 +29,11 @@
 //!
 
 // Add imports here
-use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
+use cplwm_api::types::{Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::{WindowManager, TilingSupport, FloatSupport, MinimiseSupport};
 
 use wm_common::{Manager, LayoutManager, TilingTrait, FloatTrait, FloatAndTileTrait};
-use wm_common::error::{StandardError, FloatWMError};
+use wm_common::error::FloatWMError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::VerticalLayout;
 use c_floating_windows::FloatOrTileManager;
@@ -361,165 +361,101 @@ mod tests {
     use wm_common::tests::minimise_support;
     use super::MinimiseWM;
     use b_tiling_wm::VerticalLayout;
-    use cplwm_api::wm::WindowManager;
-    use cplwm_api::types::*;
-
-    static SCREEN: Screen = Screen {
-        width: 800,
-        height: 600,
-    };
 
     #[test]
     fn test_empty_tiling_wm(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_empty_wm(wm, SCREEN);
+        window_manager::test_empty_wm::<MinimiseWM>();
     }
 
     #[test]
     fn test_adding_and_removing_some_windows(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_adding_and_removing_windows(wm);
+        window_manager::test_adding_and_removing_windows::<MinimiseWM>();
     }
 
     #[test]
     fn test_focus_and_unfocus_window() {
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_focus_and_unfocus_window(wm);
+        window_manager::test_focus_and_unfocus_window::<MinimiseWM>();
     }
 
     #[test]
     fn test_cycle_focus_none_and_one_window() {
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_none_and_one_window(wm);
+        window_manager::test_cycle_focus_none_and_one_window::<MinimiseWM>();
     }
 
     #[test]
     fn test_cycle_focus_multiple_windows() {
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_cycle_focus_multiple_windows(wm);
+        window_manager::test_cycle_focus_multiple_windows::<MinimiseWM>();
     }
 
     #[test]
     fn test_get_window_info(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_get_window_info(wm);
+        window_manager::test_get_window_info::<MinimiseWM>();
     }
 
     #[test]
     fn test_resize_screen(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use common test
-        window_manager::test_resize_screen(wm, SCREEN);
+        window_manager::test_resize_screen::<MinimiseWM>();
     }
 
     #[test]
     fn test_get_master_window(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_master_tile(wm);
+        tiling_support::test_master_tile::<MinimiseWM>();
     }
 
     #[test]
     fn test_swap_with_master_window(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_swap_with_master(wm);
+        tiling_support::test_swap_with_master::<MinimiseWM>();
     }
 
 
     #[test]
     fn test_swap_windows(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_swap_windows(wm, VerticalLayout{});
+        tiling_support::test_swap_windows::<MinimiseWM, VerticalLayout>(VerticalLayout{});
     }
 
     #[test]
     fn test_tiling_layout(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        tiling_support::test_get_window_info(wm, VerticalLayout{});
+        tiling_support::test_get_window_info::<MinimiseWM, VerticalLayout>(VerticalLayout{});
     }
 
     #[test]
     fn test_get_floating_windows(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_support::test_get_floating_windows(wm);
+        float_support::test_get_floating_windows::<MinimiseWM>();
     }
 
     #[test]
     fn test_toggle_floating(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_support::test_toggle_floating(wm);
+        float_support::test_toggle_floating::<MinimiseWM>();
     }
 
     #[test]
     fn test_set_window_geometry(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_support::test_set_window_geometry(wm);
+        float_support::test_set_window_geometry::<MinimiseWM>();
     }
 
     #[test]
     fn test_window_layout_order(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_support::test_window_layout_order(wm);
+        float_support::test_window_layout_order::<MinimiseWM>();
     }
 
     #[test]
     fn test_focus_floating_window_order(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_support::test_focus_floating_window_order(wm);
+        float_support::test_focus_floating_window_order::<MinimiseWM>();
     }
 
     #[test]
     fn test_swapping_master_with_floating_window_no_tiles(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_and_tile_support::test_swapping_master_with_floating_window_no_tiles(wm);
+        float_and_tile_support::test_swapping_master_with_floating_window_no_tiles::<MinimiseWM>();
     }
 
     #[test]
     fn test_swapping_master_with_floating_window(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_and_tile_support::test_swapping_master_with_floating_window(wm);
+        float_and_tile_support::test_swapping_master_with_floating_window::<MinimiseWM>();
     }
 
     #[test]
     fn test_swap_windows_on_floating(){
-        // Initialize test with a new window manager
-        let wm = MinimiseWM::new(SCREEN);
-        // use the common test
-        float_and_tile_support::test_swap_windows_on_floating(wm);
+        float_and_tile_support::test_swap_windows_on_floating::<MinimiseWM>();
     }
 
     #[test]

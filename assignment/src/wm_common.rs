@@ -316,6 +316,11 @@ pub mod tests {
         use cplwm_api::wm::{TilingSupport,FloatSupport};
         use cplwm_api::types::*;
 
+        static SCREEN: Screen = Screen {
+            width: 800,
+            height: 600,
+        };
+
         static SOME_GEOM_A: Geometry = Geometry {
             x: 10,
             y: 10,
@@ -332,7 +337,8 @@ pub mod tests {
 
 
         /// swapping a floating window with a master when there is no master should do nothing
-        pub fn test_swapping_master_with_floating_window_no_tiles<T: TilingSupport+FloatSupport>(mut wm: T){
+        pub fn test_swapping_master_with_floating_window_no_tiles<T: TilingSupport+FloatSupport>(){
+            let mut wm = T::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM_B)).is_ok());
 
             assert!(wm.swap_with_master(2).is_ok());
@@ -342,7 +348,8 @@ pub mod tests {
         }
 
         /// test swapping floating window with master tile works as expected: current master -> floating, floating -> master
-        pub fn test_swapping_master_with_floating_window<T: TilingSupport+FloatSupport>(mut wm: T){
+        pub fn test_swapping_master_with_floating_window<T: TilingSupport+FloatSupport>(){
+            let mut wm = T::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM_B)).is_ok());
 
@@ -354,7 +361,8 @@ pub mod tests {
         }
 
         /// test swap_windows does nothing for a floating window
-        pub fn test_swap_windows_on_floating<T: TilingSupport+FloatSupport>(mut wm: T){
+        pub fn test_swap_windows_on_floating<T: TilingSupport+FloatSupport>(){
+            let mut wm = T::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM_B)).is_ok());
 
@@ -378,6 +386,11 @@ pub mod tests {
         use cplwm_api::wm::FloatSupport;
         use cplwm_api::types::*;
 
+        static SCREEN: Screen = Screen {
+            width: 800,
+            height: 600,
+        };
+
         static SOME_GEOM: Geometry = Geometry {
             x: 10,
             y: 10,
@@ -400,7 +413,8 @@ pub mod tests {
         };
 
         /// Test the get_floating_windows functionality
-        pub fn test_get_floating_windows<F: FloatSupport>(mut wm: F){
+        pub fn test_get_floating_windows<F: FloatSupport>(){
+            let mut wm = F::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_float(2, SOME_GEOM)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_float(3, SOME_GEOM)).is_ok());
@@ -414,7 +428,8 @@ pub mod tests {
         }
 
         /// Test toggle_floating
-        pub fn test_toggle_floating<F: FloatSupport>(mut wm: F){
+        pub fn test_toggle_floating<F: FloatSupport>(){
+            let mut wm = F::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM_A)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM_B)).is_ok());
 
@@ -443,7 +458,8 @@ pub mod tests {
         }
 
         /// Test set_window_geometry
-        pub fn test_set_window_geometry<F: FloatSupport>(mut wm: F){
+        pub fn test_set_window_geometry<F: FloatSupport>(){
+            let mut wm = F::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
 
             assert_eq!(SOME_GEOM, wm.get_window_info(1).unwrap().geometry);
@@ -465,7 +481,8 @@ pub mod tests {
         }
 
         /// Test to check floating windows are above tiled windows
-        pub fn test_window_layout_order<F: FloatSupport>(mut wm: F){
+        pub fn test_window_layout_order<F: FloatSupport>(){
+            let mut wm = F::new(SCREEN);
             assert_eq!(WindowLayout::new(), wm.get_window_layout());
 
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
@@ -486,7 +503,8 @@ pub mod tests {
         }
 
         /// Test to check focusing on a floating window puts it on top
-        pub fn test_focus_floating_window_order<F: FloatSupport>(mut wm: F){
+        pub fn test_focus_floating_window_order<F: FloatSupport>(){
+            let mut wm = F::new(SCREEN);
             assert_eq!(WindowLayout::new(), wm.get_window_layout());
 
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
@@ -512,6 +530,11 @@ pub mod tests {
         use cplwm_api::wm::TilingSupport;
         use cplwm_api::types::*;
 
+        static SCREEN: Screen = Screen {
+            width: 800,
+            height: 600,
+        };
+
         // A random, unimportant Geometry
         static SOME_GEOM: Geometry = Geometry {
             x: 10,
@@ -522,14 +545,16 @@ pub mod tests {
 
         /// test if there is a master window when there are windows, and no master tile if there
         /// are on windows.
-        pub fn test_master_tile<T: TilingSupport>(mut wm: T) {
+        pub fn test_master_tile<T: TilingSupport>() {
+            let mut wm = T::new(SCREEN);
             assert_eq!(None, wm.get_master_window());
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
             assert_eq!(Some(1), wm.get_master_window());
         }
 
         /// test swap_with_master swaps with the master and focusses the window.
-        pub fn test_swap_with_master<T: TilingSupport>(mut wm: T){
+        pub fn test_swap_with_master<T: TilingSupport>(){
+            let mut wm = T::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
 
@@ -544,8 +569,9 @@ pub mod tests {
         }
 
         /// test swap_windows swaps the windows
-        pub fn test_swap_windows<TS: TilingSupport, TL: TilingLayout>(mut wm: TS, layout: TL){
-
+        pub fn test_swap_windows<TS: TilingSupport, TL: TilingLayout>(layout: TL){
+            let mut wm = TS::new(SCREEN);
+ 
             wm.swap_windows(PrevOrNext::Next);
             assert_eq!(None, wm.get_master_window());
             assert_eq!(None, wm.get_focused_window());
@@ -598,7 +624,8 @@ pub mod tests {
         }
 
         /// test if get_window_info returns the expected layout for the window
-        pub fn test_get_window_info<TS: TilingSupport, TL: TilingLayout>(mut wm: TS, layout: TL){
+        pub fn test_get_window_info<TS: TilingSupport, TL: TilingLayout>(layout: TL){
+            let mut wm = TS::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_tiled(3, SOME_GEOM)).is_ok());
@@ -628,6 +655,11 @@ pub mod tests {
         use cplwm_api::wm::WindowManager;
         use cplwm_api::types::*;
 
+        static SCREEN: Screen = Screen {
+            width: 800,
+            height: 600,
+        };
+
         // A random, unimportant Geometry
         static SOME_GEOM: Geometry = Geometry {
             x: 10,
@@ -637,14 +669,16 @@ pub mod tests {
         };
 
         /// test if the given window manager is initialized the right way
-        pub fn test_empty_wm<T : WindowManager>(wm: T, given_screen: Screen){
+        pub fn test_empty_wm<T : WindowManager>(){
+            let wm = T::new(SCREEN);
             assert_eq!(WindowLayout::new(), wm.get_window_layout());
             assert_eq!(0, wm.get_windows().len());
-            assert_eq!(given_screen, wm.get_screen())
+            assert_eq!(SCREEN, wm.get_screen())
         }
 
         /// test for adding and removing windows to the WindowManager
-        pub fn test_adding_and_removing_windows<T: WindowManager>(mut wm: T) {
+        pub fn test_adding_and_removing_windows<T: WindowManager>() {
+            let mut wm = T::new(SCREEN);
             let window_a = WindowWithInfo::new_tiled(1, SOME_GEOM);
             let window_b = WindowWithInfo::new_tiled(2, SOME_GEOM);
 
@@ -678,7 +712,8 @@ pub mod tests {
         }
 
         /// test for the focus functionality in WindowManager
-        pub fn test_focus_and_unfocus_window<T: WindowManager>(mut wm: T) {
+        pub fn test_focus_and_unfocus_window<T: WindowManager>() {
+            let mut wm = T::new(SCREEN);
             // Assert the initial focused_window window is None
             assert_eq!(None, wm.get_focused_window());
             assert_eq!(None, wm.get_window_layout().focused_window);
@@ -703,7 +738,8 @@ pub mod tests {
         }
 
         /// test for cycle_focus in a WindowManager with no windows and with one window
-        pub fn test_cycle_focus_none_and_one_window<T: WindowManager>(mut wm: T) {
+        pub fn test_cycle_focus_none_and_one_window<T: WindowManager>() {
+            let mut wm = T::new(SCREEN);
             // Assert the initial focused_window window is None
             assert_eq!(None, wm.get_focused_window());
             assert_eq!(None, wm.get_window_layout().focused_window);
@@ -739,7 +775,8 @@ pub mod tests {
         }
 
         /// test for cycle_focus in a WindowManager with multiple windows
-        pub fn test_cycle_focus_multiple_windows<T: WindowManager>(mut wm: T) {
+        pub fn test_cycle_focus_multiple_windows<T: WindowManager>() {
+            let mut wm = T::new(SCREEN);
             //make sure the given WindowManager is empty
             assert_eq!(0, wm.get_windows().len());
 
@@ -774,18 +811,20 @@ pub mod tests {
         }
 
         /// test for resize screen in WindowManager
-        pub fn test_resize_screen<T: WindowManager>(mut wm: T, given_screen: Screen) {
+        pub fn test_resize_screen<T: WindowManager>() {
+            let mut wm = T::new(SCREEN);
             let new_screen = Screen {
                 width: 1000,
                 height: 1000,
             };
-            assert_eq!(given_screen, wm.get_screen());
+            assert_eq!(SCREEN, wm.get_screen());
             wm.resize_screen(new_screen);
             assert_eq!(new_screen, wm.get_screen());
         }
 
         /// test each window should have window info available
-        pub fn test_get_window_info<T: WindowManager>(mut wm: T){
+        pub fn test_get_window_info<T: WindowManager>(){
+            let mut wm = T::new(SCREEN);
             // Add 3 window to the initial WindowManager
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
             assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
