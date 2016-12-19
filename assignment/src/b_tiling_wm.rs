@@ -27,7 +27,7 @@
 use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::{WindowManager, TilingSupport};
 
-use wm_common::{TilingLayout, Manager, LayoutManager};
+use wm_common::{TilingLayout, Manager, LayoutManager, TilingTrait};
 use wm_common::error::StandardError;
 use a_fullscreen_wm::FocusManager;
 use std::collections::{HashMap,VecDeque};
@@ -197,6 +197,30 @@ impl<TL> LayoutManager for TileManager<TL> where TL : TilingLayout<Error=Standar
 
 }
 
+impl<TL> TilingTrait for TileManager<TL> where TL : TilingLayout<Error=StandardError> {
+
+    /// Return current master window
+    fn get_master_window(&self) -> Option<Window> {
+        self.layout.get_master_window(&self.tiles)
+    }
+
+    /// Swap the window with the master and focus master through the given focus_manager
+    fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), StandardError>{
+        self.layout.swap_with_master(window, &mut self.tiles).and_then(|_| {
+            focus_manager.focus_window(Some(window))
+        })
+    }
+
+    /// Swap currently focused window in the focus_manager with the next or previous tile
+    fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
+        focus_manager.get_focused_window().and_then(|window| {
+            self.layout.swap_windows(window, dir, &mut self.tiles);
+            Some(())
+        });
+    }
+}
+
+
 impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
     /// A new, empty TileManager
     pub fn new(screen: Screen, layout: TL) -> TileManager<TL> {
@@ -211,28 +235,6 @@ impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
     /// Return the original WindowWithInfo of the given window
     pub fn get_original_window_info(&self, window: Window) -> Result<WindowWithInfo, StandardError> {
         self.originals.get(&window).map(|w| *w).ok_or(StandardError::UnknownWindow(window))
-    }
-
-
-
-    /// Return current master window
-    pub fn get_master_window(&self) -> Option<Window> {
-        self.layout.get_master_window(&self.tiles)
-    }
-
-    /// Swap the window with the master and focus master through the given focus_manager
-    pub fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), StandardError>{
-        self.layout.swap_with_master(window, &mut self.tiles).and_then(|_| {
-            focus_manager.focus_window(Some(window))
-        })
-    }
-
-    /// Swap currently focused window in the focus_manager with the next or previous tile
-    pub fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
-        focus_manager.get_focused_window().and_then(|window| {
-            self.layout.swap_windows(window, dir, &mut self.tiles);
-            Some(())
-        });
     }
 
     /// Return the current Geometry for the given window

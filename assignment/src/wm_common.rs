@@ -6,6 +6,8 @@ use std::collections::VecDeque;
 
 use cplwm_api::types::*;
 
+use a_fullscreen_wm::FocusManager;
+
 /// Trait which defines an interface to a Tiling Layout strategy
 pub trait TilingLayout: Encodable + Decodable + Debug + Clone  {
     /// The type of error associated with this TilingLayout
@@ -51,6 +53,41 @@ pub trait LayoutManager : Manager {
     fn get_screen(&self) -> Screen;
     /// resize screen
     fn resize_screen(&mut self, screen: Screen);
+}
+
+/// Trait which describes TilingSupport for Managers
+pub trait TilingTrait : LayoutManager {
+    /// get the master
+    fn get_master_window(&self) -> Option<Window>;
+    /// swap with the master
+    fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), Self::Error>;
+    /// swap windows
+    fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager);
+}
+
+/// Trait which describes FloatSupport for Managers
+pub trait FloatTrait : LayoutManager {
+    /// change geometry of the floater
+    fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>;
+}
+
+/// combining TilingTrait and FloatTrait
+pub trait FloatAndTileTrait : TilingTrait + FloatTrait {
+    /// get all floating windows
+    fn get_floating_windows(&self) -> Vec<Window>;
+    /// get all tiled windows
+    fn get_tiled_windows(&self) -> Vec<Window>;
+    /// toggle floating on window
+    fn toggle_floating(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), Self::Error>;
+
+    /// true when window in get_floating_windows
+    fn is_floating(&self, window: Window) -> bool {
+        self.get_floating_windows().contains(&window)
+    }
+    /// true when a window is tiled (in tiled windows)
+    fn is_tiled(&self, window: Window) -> bool {
+        self.get_tiled_windows().contains(&window)
+    }
 }
 
 /// Module for the used error types

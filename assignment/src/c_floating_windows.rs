@@ -35,7 +35,7 @@
 use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::{WindowManager, TilingSupport, FloatSupport};
 
-use wm_common::{TilingLayout, Manager, LayoutManager};
+use wm_common::{TilingLayout, Manager, LayoutManager, TilingTrait, FloatTrait, FloatAndTileTrait};
 use wm_common::error::{StandardError,FloatWMError};
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::{TileManager, VerticalLayout};
@@ -138,7 +138,7 @@ impl FloatSupport for FloatWM {
     }
 
     fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error>{
-        self.float_or_tile_manager.toggle_floating(window)
+        self.float_or_tile_manager.toggle_floating(window, &mut self.focus_manager)
     }
 
     fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
@@ -217,32 +217,23 @@ impl<T: TilingLayout<Error=StandardError>> LayoutManager for FloatOrTileManager<
     }
 }
 
-
-impl<T: TilingLayout<Error=StandardError>> FloatOrTileManager<T> {
-    /// creates empty FloatOrTileManager
-    pub fn new(screen: Screen, tiling_layout: T) -> FloatOrTileManager<T>{
-        FloatOrTileManager{
-            tile_manager: TileManager::new(screen, tiling_layout),
-            float_manager: FloatManager::new(screen),
-        }
-    }
-
+impl<T: TilingLayout<Error=StandardError>> TilingTrait for FloatOrTileManager<T> {
     /// get the master window
-    pub fn get_master_window(&self) -> Option<Window> {
+    fn get_master_window(&self) -> Option<Window> {
         self.tile_manager.get_master_window()
     }
 
     /// swap with the master, also floating windows can swap with master
-    pub fn swap_with_master(&mut self, window: Window, mut focus_manager: &mut FocusManager) -> Result<(), FloatWMError>{
+    fn swap_with_master(&mut self, window: Window, mut focus_manager: &mut FocusManager) -> Result<(), FloatWMError>{
         if self.is_floating(window) {
-            self.toggle_floating(window).and_then(|_| {
+            self.toggle_floating(window, focus_manager).and_then(|_| {
                 let master = self.get_master_window().unwrap(); // unwrap is possible since there
                 // is bound to be at least one tile after calling toggle_float on a floating window
                 // if there is one tile, there is one master
                 self.tile_manager.swap_with_master(window, &mut focus_manager)
                     .map_err(|error| error.to_float_error())
                     .and_then(|_| {
-                        self.toggle_floating(master)
+                        self.toggle_floating(master, focus_manager)
                     })
             })
         } else {
@@ -252,22 +243,37 @@ impl<T: TilingLayout<Error=StandardError>> FloatOrTileManager<T> {
     }
 
     /// swap windows
-    pub fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
+    fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
         self.tile_manager.swap_windows(dir, &focus_manager)
     }
+}
 
+impl<T: TilingLayout<Error=StandardError>> FloatTrait for FloatOrTileManager<T> {
+    /// set the geometry of floating window
+    fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), FloatWMError>{
+        self.float_manager.set_window_geometry(window, new_geometry).map_err(|error| {
+            if self.tile_manager.is_managed(window) {
+                FloatWMError::NotFloatingWindow(window)
+            } else {
+                error
+            }
+        })
+    }
+}
+
+impl<T: TilingLayout<Error=StandardError>> FloatAndTileTrait for FloatOrTileManager<T> {
     /// get all floating windows
-    pub fn get_floating_windows(&self) -> Vec<Window> {
+    fn get_floating_windows(&self) -> Vec<Window> {
         self.float_manager.get_windows()
     }
 
-    /// true when window in get_floating_windows
-    pub fn is_floating(&self, window: Window) -> bool {
-        self.float_manager.get_windows().contains(&window)
+    /// get all tiled windows
+    fn get_tiled_windows(&self) -> Vec<Window> {
+        self.tile_manager.get_windows()
     }
 
     /// toggle floating on window
-    pub fn toggle_floating(&mut self, window: Window) -> Result<(), FloatWMError>{
+    fn toggle_floating(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError>{
         if self.float_manager.is_managed(window) {
             self.float_manager.get_window_info(window).and_then(|window_with_info| {
                 self.float_manager.remove_window(window).and_then(|_| {
@@ -299,16 +305,15 @@ impl<T: TilingLayout<Error=StandardError>> FloatOrTileManager<T> {
             Err(FloatWMError::UnknownWindow(window))
         }
     }
+}
 
-    /// set the geometry of floating window
-    pub fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), FloatWMError>{
-        self.float_manager.set_window_geometry(window, new_geometry).map_err(|error| {
-            if self.tile_manager.is_managed(window) {
-                FloatWMError::NotFloatingWindow(window)
-            } else {
-                error
-            }
-        })
+impl<T: TilingLayout<Error=StandardError>> FloatOrTileManager<T> {
+    /// creates empty FloatOrTileManager
+    pub fn new(screen: Screen, tiling_layout: T) -> FloatOrTileManager<T>{
+        FloatOrTileManager{
+            tile_manager: TileManager::new(screen, tiling_layout),
+            float_manager: FloatManager::new(screen),
+        }
     }
 }
 
@@ -386,14 +391,7 @@ impl LayoutManager for FloatManager {
     }
 }
 
-impl FloatManager {
-    fn new(screen: Screen) -> FloatManager{
-        FloatManager {
-            screen: screen,
-            floaters: Vec::new(),
-        }
-    }
-
+impl FloatTrait for FloatManager {
     fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), FloatWMError>{
         match self.floaters.iter().position(|w| w.window == window) {
             None => Err(FloatWMError::UnknownWindow(window)),
@@ -401,6 +399,15 @@ impl FloatManager {
                 self.floaters[i].geometry = new_geometry;
                 Ok(())
             }
+        }
+    }
+}
+
+impl FloatManager {
+    fn new(screen: Screen) -> FloatManager{
+        FloatManager {
+            screen: screen,
+            floaters: Vec::new(),
         }
     }
 }

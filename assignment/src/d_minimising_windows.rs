@@ -32,7 +32,7 @@
 use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::{WindowManager, TilingSupport, FloatSupport, MinimiseSupport};
 
-use wm_common::{Manager, LayoutManager};
+use wm_common::{Manager, LayoutManager, TilingTrait, FloatTrait, FloatAndTileTrait};
 use wm_common::error::{StandardError, FloatWMError};
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::VerticalLayout;
@@ -95,16 +95,13 @@ impl WindowManager for MinimiseWM {
 
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
         match window {
-            None => {},
-            Some(w) => {
-                if self.is_minimised(w) {
-                    self.toggle_minimised(w);
-                }
-            }
-        }
-        self.focus_manager.focus_window(window)
-            .map_err(|error| error.to_float_error())
-            .and_then(|_| self.minimise_manager.focus_shifted(window))
+            None => Ok(()),
+            Some(w) => self.minimise_manager.maximise_if_minimised(w, &mut self.focus_manager),
+        }.and_then(|_| {
+            self.focus_manager.focus_window(window)
+                .map_err(|error| error.to_float_error())
+                .and_then(|_| self.minimise_manager.focus_shifted(window))
+        })
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
@@ -113,7 +110,6 @@ impl WindowManager for MinimiseWM {
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
         self.minimise_manager.get_window_info(window)
-            .or_else(|_| self.minimise_manager.get_window_info(window))
     }
 
     fn get_screen(&self) -> Screen {
@@ -127,41 +123,35 @@ impl WindowManager for MinimiseWM {
 
 impl TilingSupport for MinimiseWM {
     fn get_master_window(&self) -> Option<Window> {
-        self.minimise_manager.get_layout_manager().get_master_window()
+        self.minimise_manager.get_master_window()
     }
 
     fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
-        if self.is_minimised(window) {
-            self.toggle_minimised(window);
-        }
-        self.minimise_manager.get_layout_manager().swap_with_master(window, &mut self.focus_manager)
+        self.minimise_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
     fn swap_windows(&mut self, dir: PrevOrNext){
-        self.minimise_manager.get_layout_manager().swap_windows(dir, &self.focus_manager)
+        self.minimise_manager.swap_windows(dir, &self.focus_manager)
     }
 }
 
 impl FloatSupport for MinimiseWM {
     fn get_floating_windows(&self) -> Vec<Window> {
-        self.minimise_manager.get_layout_manager().get_floating_windows()
+        self.minimise_manager.get_floating_windows()
     }
 
     fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error>{
-        if self.is_minimised(window) {
-            self.toggle_minimised(window);
-        }
-        self.minimise_manager.get_layout_manager().toggle_floating(window)
+        self.minimise_manager.toggle_floating(window, &mut self.focus_manager)
     }
 
     fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
-        self.minimise_manager.get_layout_manager().set_window_geometry(window, new_geometry)
+        self.minimise_manager.set_window_geometry(window, new_geometry)
     }
 }
 
 impl MinimiseSupport for MinimiseWM {
     fn get_minimised_windows(&self) -> Vec<Window> {
-        self.minimise_manager.get_windows()
+        self.minimise_manager.get_minimised_windows()
     }
 
     fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
@@ -171,14 +161,14 @@ impl MinimiseSupport for MinimiseWM {
 
 /// Manager to manage the minimised windows and a LayoutManager
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct MinimiseManager<LM : LayoutManager<Error=FloatWMError>> {
+pub struct MinimiseManager<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> {
     /// The wrapped layout manager
     pub layout_manager: LM,
     /// The helper for the minimised windows
     pub minimise_assistant_manager: MinimiseAssistantManager,
 }
 
-impl<LM : LayoutManager<Error=FloatWMError>> Manager for MinimiseManager<LM> {
+impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> Manager for MinimiseManager<LM> {
     type Error = FloatWMError;
 
     fn get_windows(&self) -> Vec<Window> {
@@ -197,7 +187,7 @@ impl<LM : LayoutManager<Error=FloatWMError>> Manager for MinimiseManager<LM> {
     }
 }
 
-impl<LM : LayoutManager<Error=FloatWMError>> LayoutManager for MinimiseManager<LM> {
+impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> LayoutManager for MinimiseManager<LM> {
     fn get_window_layout(&self) -> Vec<(Window, Geometry)>{
         self.layout_manager.get_window_layout()
     }
@@ -220,7 +210,48 @@ impl<LM : LayoutManager<Error=FloatWMError>> LayoutManager for MinimiseManager<L
     }
 }
 
-impl<LM : LayoutManager<Error=FloatWMError>> MinimiseManager<LM> {
+impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> TilingTrait for MinimiseManager<LM> {
+    /// get the master
+    fn get_master_window(&self) -> Option<Window>{
+        self.layout_manager.get_master_window()
+    }
+    /// swap with the master
+    fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), Self::Error>{
+        self.maximise_if_minimised(window, focus_manager)
+            .and_then(|_| {
+                self.layout_manager.swap_with_master(window, focus_manager)
+            })
+    }
+    /// swap windows
+    fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
+        self.layout_manager.swap_windows(dir, focus_manager)
+    }
+}
+
+impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> FloatTrait for MinimiseManager<LM> {
+        /// change geometry of the floater
+        fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
+            self.layout_manager.set_window_geometry(window, new_geometry)
+        }
+}
+
+impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> FloatAndTileTrait for MinimiseManager<LM> {
+    fn get_floating_windows(&self) -> Vec<Window>{
+        self.layout_manager.get_floating_windows()
+    }
+    /// get all tiled windows
+    fn get_tiled_windows(&self) -> Vec<Window>{
+        self.layout_manager.get_tiled_windows()
+    }
+    /// toggle floating on window
+    fn toggle_floating(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), Self::Error>{
+        self.maximise_if_minimised(window, focus_manager)
+            .and_then(|_| self.layout_manager.toggle_floating(window, focus_manager))
+    }
+}
+
+
+impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> MinimiseManager<LM> {
     fn new(layout_manager: LM) -> MinimiseManager<LM>{
         MinimiseManager {
             layout_manager: layout_manager,
@@ -228,8 +259,8 @@ impl<LM : LayoutManager<Error=FloatWMError>> MinimiseManager<LM> {
         }
     }
 
-    fn get_layout_manager(self) -> LM {
-        self.layout_manager
+    fn get_minimised_windows(&self) -> Vec<Window> {
+        self.minimise_assistant_manager.get_windows()
     }
 
     fn maximise_if_minimised(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError> {
