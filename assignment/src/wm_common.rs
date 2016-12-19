@@ -240,7 +240,7 @@ pub mod tests {
             assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM_B)).is_ok());
 
             assert_eq!(SOME_GEOM_A, wm.get_window_info(1).unwrap().geometry);
-            
+
             assert!(wm.is_floating(1));
             assert!(!wm.is_floating(2));
 
