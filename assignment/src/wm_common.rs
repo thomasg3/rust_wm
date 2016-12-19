@@ -132,6 +132,53 @@ pub mod error {
 pub mod tests {
 
 
+    /// Module to test minimize functionality
+    pub mod minise_support {
+        use cplwm_api::wm::{MinimiseSupport};
+        use cplwm_api::types::*;
+
+        static SCREEN: Screen = Screen {
+            width: 800,
+            height: 600,
+        };
+
+        static SOME_GEOM: Geometry = Geometry {
+            x: 10,
+            y: 10,
+            width: 100,
+            height: 100,
+        };
+
+        /// Test whether toggle_minimised hides the windows, but keeps them managed, and adds them again later with the correct properties
+        pub fn test_minimise<T: MinimiseSupport>(){
+            let mut wm = T::new(SCREEN);
+
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+
+            // assert the correct properties
+
+            // toggle minize on float
+
+            // assert correct properties
+
+            // toggle minise on float
+
+            // assert correct properties
+
+            // toggle minize on tile
+
+            // assert correct properties
+
+            // toggle minise on tile  
+
+            // assert correct properties
+
+
+        }
+    }
+
+
     /// Module for tests concerning window managers which support aswell as floating as tiled windows
     pub mod float_and_tile_support {
         use cplwm_api::wm::{TilingSupport,FloatSupport};

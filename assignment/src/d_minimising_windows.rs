@@ -86,6 +86,7 @@ impl WindowManager for MinimizeWM {
         match self.focus_manager.remove_window(window) {
             Err(error) => Err(error.to_float_error()),
             Ok(_) => self.float_or_tile_manager.remove_window(window)
+                .or_else(|_| self.minimize_manager.remove_window(window))
         }
     }
 
@@ -151,8 +152,19 @@ impl MinimiseSupport for MinimizeWM {
     fn get_minimised_windows(&self) -> Vec<Window> {
         self.minimize_manager.get_windows()
     }
+
     fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
-        unimplemented!()
+        if self.is_minimised(window) {
+            self.minimize_manager.get_window_info(window).and_then(|info| {
+                self.minimize_manager.remove_window(window);
+                self.float_or_tile_manager.add_window(info)
+            })
+        } else {
+            self.float_or_tile_manager.get_window_info(window).and_then(|info| {
+                self.float_or_tile_manager.remove_window(window);
+                self.minimize_manager.add_window(info)
+            })
+        }
     }
 }
 
@@ -177,6 +189,31 @@ impl MinimizeManager {
             minis: HashMap::new(),
         }
     }
+
+    /// add a window
+    pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), FloatWMError> {
+        if self.is_managed(window_with_info.window) {
+            Err(FloatWMError::AlReadyManagedWindow(window_with_info.window))
+        } else {
+            self.minis.insert(window_with_info.window, window_with_info);
+            Ok(())
+        }
+    }
+
+    /// remove a window
+    pub fn remove_window(&mut self, window: Window) -> Result<(), FloatWMError> {
+        self.minis.remove(&window)
+            .map(|_| ())
+            .ok_or(FloatWMError::UnknownWindow(window))
+    }
+
+    /// get specific window_info
+    pub fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, FloatWMError> {
+        self.minis.get(&window)
+            .map(|w| *w)
+            .ok_or(FloatWMError::UnknownWindow(window))
+    }
+
 }
 
 #[cfg(test)]
