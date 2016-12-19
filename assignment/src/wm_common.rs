@@ -205,6 +205,26 @@ pub mod tests {
             height: 100,
         };
 
+        /// Test the correct order of the minimised windows
+        pub fn test_minimise_order<T: MinimiseSupport>(){
+            let mut wm = T::new(SCREEN);
+
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(3, SOME_GEOM)).is_ok());
+
+            assert_eq!(Vec::<Window>::new(), wm.get_minimised_windows());
+
+            assert!(wm.toggle_minimised(1).is_ok());
+            assert_eq!(vec![1], wm.get_minimised_windows());
+
+            assert!(wm.toggle_minimised(3).is_ok());
+            assert_eq!(vec![1,3], wm.get_minimised_windows());
+
+            assert!(wm.toggle_minimised(2).is_ok());
+            assert_eq!(vec![1,3,2], wm.get_minimised_windows());
+        }
+
         /// Test whether toggle_minimised hides the windows, but keeps them managed, and adds them again later with the correct properties
         pub fn test_minimise<T: MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
@@ -571,7 +591,7 @@ pub mod tests {
         /// test swap_windows swaps the windows
         pub fn test_swap_windows<TS: TilingSupport, TL: TilingLayout>(layout: TL){
             let mut wm = TS::new(SCREEN);
- 
+
             wm.swap_windows(PrevOrNext::Next);
             assert_eq!(None, wm.get_master_window());
             assert_eq!(None, wm.get_focused_window());

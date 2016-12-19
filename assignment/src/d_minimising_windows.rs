@@ -37,7 +37,6 @@ use wm_common::error::FloatWMError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::VerticalLayout;
 use c_floating_windows::FloatOrTileManager;
-use std::collections::HashMap;
 
 
 
@@ -309,29 +308,32 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> MinimiseManager
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MinimiseAssistantManager {
     /// Map to keep the window and it's last info
-    pub minis: HashMap<Window, WindowWithInfo>,
+    pub minis: Vec<WindowWithInfo>,
 }
 
 impl Manager for MinimiseAssistantManager {
     type Error = FloatWMError;
 
     fn get_windows(&self) -> Vec<Window> {
-        self.minis.keys().map(|w| *w).collect()
+        self.minis.iter().map(|w| w.window).collect()
     }
 
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), FloatWMError> {
         if self.is_managed(window_with_info.window) {
             Err(FloatWMError::AlReadyManagedWindow(window_with_info.window))
         } else {
-            self.minis.insert(window_with_info.window, window_with_info);
+            self.minis.push(window_with_info);
             Ok(())
         }
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), FloatWMError> {
-        self.minis.remove(&window)
-            .map(|_| ())
+        self.minis.iter().position(|w| w.window == window)
             .ok_or(FloatWMError::UnknownWindow(window))
+            .and_then(|index| {
+                self.minis.remove(index);
+                Ok(())
+            })
     }
 }
 
@@ -339,18 +341,23 @@ impl MinimiseAssistantManager {
     /// create empty MinimiseAssistantManager
     pub fn new() -> MinimiseAssistantManager {
         MinimiseAssistantManager{
-            minis: HashMap::new(),
+            minis: Vec::new(),
         }
     }
 
     /// get specific window_info
     pub fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, FloatWMError> {
-        self.minis.get(&window)
-            .map(|w| *w)
+        self.minis.iter().position(|w| w.window == window)
             .ok_or(FloatWMError::UnknownWindow(window))
+            .and_then(|index| {
+                self.minis.get(index)
+                    .map(|w| *w)
+                    .ok_or(FloatWMError::UnknownWindow(window))
+            })
     }
 
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -476,6 +483,11 @@ mod tests {
     #[test]
     fn test_minimise_of_tiled_window() {
         minimise_support::test_minimise_of_tiled_window::<MinimiseWM>();
+    }
+
+    #[test]
+    fn test_minimise_order() {
+        minimise_support::test_minimise_order::<MinimiseWM>();
     }
 
 
