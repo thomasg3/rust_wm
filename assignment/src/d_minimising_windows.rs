@@ -33,7 +33,7 @@ use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, Window
 use cplwm_api::wm::{WindowManager, TilingSupport, FloatSupport, MinimiseSupport};
 
 use wm_common::{Manager, LayoutManager};
-use wm_common::error::FloatWMError;
+use wm_common::error::{StandardError, FloatWMError};
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::VerticalLayout;
 use c_floating_windows::FloatOrTileManager;
@@ -42,17 +42,15 @@ use std::collections::HashMap;
 
 
 /// the public type
-pub type WMName = ();
+pub type WMName = MinimiseWM;
 
 /// struct for MinimiseWM = {Focus + TileOrFloat + Minimize}
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MinimiseWM{
     /// focus manager
     pub focus_manager: FocusManager,
-    /// tileOrFloat manager (visible windows)
-    pub float_or_tile_manager: FloatOrTileManager<VerticalLayout>,
-    /// manager for handling minimized windows
-    pub minimise_manager: MinimiseAssistantManager
+    /// the layout manager
+    pub minimise_manager: MinimiseManager<FloatOrTileManager<VerticalLayout>>,
 }
 
 impl WindowManager for MinimiseWM {
@@ -61,8 +59,7 @@ impl WindowManager for MinimiseWM {
     fn new(screen: Screen) -> MinimiseWM {
         MinimiseWM {
             focus_manager: FocusManager::new(),
-            float_or_tile_manager: FloatOrTileManager::new(screen, VerticalLayout{}),
-            minimise_manager: MinimiseAssistantManager::new(),
+            minimise_manager: MinimiseManager::new(FloatOrTileManager::new(screen, VerticalLayout{})),
         }
     }
 
@@ -78,22 +75,21 @@ impl WindowManager for MinimiseWM {
         self.focus_manager.add_window(window_with_info)
             .map_err(|error| error.to_float_error())
             .and_then(|_| {
-                self.float_or_tile_manager.add_window(window_with_info)
+                self.minimise_manager.add_window(window_with_info)
             })
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
         match self.focus_manager.remove_window(window) {
             Err(error) => Err(error.to_float_error()),
-            Ok(_) => self.float_or_tile_manager.remove_window(window)
-                .or_else(|_| self.minimise_manager.remove_window(window))
+            Ok(_) => self.minimise_manager.remove_window(window)
         }
     }
 
     fn get_window_layout(&self) -> WindowLayout {
         WindowLayout {
             focused_window: self.get_focused_window(),
-            windows: self.float_or_tile_manager.get_window_layout(),
+            windows: self.minimise_manager.get_window_layout(),
         }
     }
 
@@ -108,7 +104,7 @@ impl WindowManager for MinimiseWM {
         }
         self.focus_manager.focus_window(window)
             .map_err(|error| error.to_float_error())
-            .and_then(|_| self.float_or_tile_manager.focus_shifted(window))
+            .and_then(|_| self.minimise_manager.focus_shifted(window))
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
@@ -116,50 +112,50 @@ impl WindowManager for MinimiseWM {
     }
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
-        self.float_or_tile_manager.get_window_info(window)
+        self.minimise_manager.get_window_info(window)
             .or_else(|_| self.minimise_manager.get_window_info(window))
     }
 
     fn get_screen(&self) -> Screen {
-        self.float_or_tile_manager.get_screen()
+        self.minimise_manager.get_screen()
     }
 
     fn resize_screen(&mut self, screen: Screen) {
-        self.float_or_tile_manager.resize_screen(screen);
+        self.minimise_manager.resize_screen(screen);
     }
 }
 
 impl TilingSupport for MinimiseWM {
     fn get_master_window(&self) -> Option<Window> {
-        self.float_or_tile_manager.get_master_window()
+        self.minimise_manager.get_layout_manager().get_master_window()
     }
 
     fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
         if self.is_minimised(window) {
             self.toggle_minimised(window);
         }
-        self.float_or_tile_manager.swap_with_master(window, &mut self.focus_manager)
+        self.minimise_manager.get_layout_manager().swap_with_master(window, &mut self.focus_manager)
     }
 
     fn swap_windows(&mut self, dir: PrevOrNext){
-        self.float_or_tile_manager.swap_windows(dir, &self.focus_manager)
+        self.minimise_manager.get_layout_manager().swap_windows(dir, &self.focus_manager)
     }
 }
 
 impl FloatSupport for MinimiseWM {
     fn get_floating_windows(&self) -> Vec<Window> {
-        self.float_or_tile_manager.get_floating_windows()
+        self.minimise_manager.get_layout_manager().get_floating_windows()
     }
 
     fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error>{
         if self.is_minimised(window) {
             self.toggle_minimised(window);
         }
-        self.float_or_tile_manager.toggle_floating(window)
+        self.minimise_manager.get_layout_manager().toggle_floating(window)
     }
 
     fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
-        self.float_or_tile_manager.set_window_geometry(window, new_geometry)
+        self.minimise_manager.get_layout_manager().set_window_geometry(window, new_geometry)
     }
 }
 
@@ -169,28 +165,7 @@ impl MinimiseSupport for MinimiseWM {
     }
 
     fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
-        if self.is_minimised(window) {
-            self.minimise_manager.get_window_info(window).and_then(|info| {
-                self.minimise_manager.remove_window(window)
-                    .and_then(|_| self.float_or_tile_manager.add_window(info)
-                        .and_then(|_| self.focus_window(Some(window))))
-            })
-        } else {
-            self.float_or_tile_manager.get_window_info(window).and_then(|info| {
-                self.float_or_tile_manager.remove_window(window)
-                    .and_then(|_| self.minimise_manager.add_window(info)
-                        .and_then(|_| {
-                            match self.get_focused_window() {
-                                None => Ok(()),
-                                Some(w) => if window == w {
-                                    self.focus_window(None)
-                                } else {
-                                    Ok(())
-                                }
-                            }
-                        }))
-            })
-        }
+        self.minimise_manager.toggle_minimised(window, &mut self.focus_manager)
     }
 }
 
@@ -250,6 +225,46 @@ impl<LM : LayoutManager<Error=FloatWMError>> MinimiseManager<LM> {
         MinimiseManager {
             layout_manager: layout_manager,
             minimise_assistant_manager: MinimiseAssistantManager::new(),
+        }
+    }
+
+    fn get_layout_manager(self) -> LM {
+        self.layout_manager
+    }
+
+    fn maximise_if_minimised(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError> {
+        if self.minimise_assistant_manager.is_managed(window) {
+            self.toggle_minimised(window, focus_manager)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn toggle_minimised(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError>{
+        if self.minimise_assistant_manager.is_managed(window) {
+            self.minimise_assistant_manager.get_window_info(window).and_then(|info| {
+                self.minimise_assistant_manager.remove_window(window)
+                    .and_then(|_| self.layout_manager.add_window(info)
+                        .and_then(|_| focus_manager.focus_window(Some(window))
+                            .map_err(|error| error.to_float_error())))
+
+            })
+        } else {
+            self.layout_manager.get_window_info(window).and_then(|info| {
+                self.layout_manager.remove_window(window)
+                    .and_then(|_| self.minimise_assistant_manager.add_window(info)
+                        .and_then(|_| {
+                            match focus_manager.get_focused_window() {
+                                None => Ok(()),
+                                Some(w) => if window == w {
+                                    focus_manager.focus_window(None)
+                                        .map_err(|error| error.to_float_error())
+                                } else {
+                                    Ok(())
+                                }
+                            }
+                        }))
+            })
         }
     }
 
