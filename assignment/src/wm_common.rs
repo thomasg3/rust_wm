@@ -355,6 +355,24 @@ pub mod tests {
             height: 100,
         };
 
+        /// Test: swapping tiled windows back and forth should not do anything if a floating window
+        /// is focused
+        pub fn test_swap_windows_with_float_focused<T: TilingSupport+FloatSupport>(){
+            let mut wm = T::new(SCREEN);
+            assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(3, SOME_GEOM_A)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_float(4, SOME_GEOM_B)).is_ok());
+
+            assert_eq!(Some(4), wm.get_focused_window());
+            let initial_layout = wm.get_window_layout();
+
+            wm.swap_windows(PrevOrNext::Prev);
+            assert_eq!(initial_layout, wm.get_window_layout());
+
+            wm.swap_windows(PrevOrNext::Next);
+            assert_eq!(initial_layout, wm.get_window_layout());
+        }
 
         /// swapping a floating window with a master when there is no master should do nothing
         pub fn test_swapping_master_with_floating_window_no_tiles<T: TilingSupport+FloatSupport>(){

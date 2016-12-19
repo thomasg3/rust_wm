@@ -244,7 +244,12 @@ impl<T: TilingLayout<Error=StandardError>> TilingTrait for FloatOrTileManager<T>
 
     /// swap windows
     fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
-        self.tile_manager.swap_windows(dir, &focus_manager)
+        match focus_manager.get_focused_window(){
+            None => {}
+            Some(w) => if self.is_tiled(w) {
+                self.tile_manager.swap_windows(dir, &focus_manager)
+            }
+        }
     }
 }
 
@@ -520,6 +525,13 @@ mod tests {
     fn test_swap_windows_on_floating(){
         float_and_tile_support::test_swap_windows_on_floating::<FloatWM>();
     }
+
+    #[test]
+    fn test_swap_windows_with_float_focused(){
+        float_and_tile_support::test_swap_windows_with_float_focused::<FloatWM>();
+    }
+
+
 
 
 

@@ -466,6 +466,11 @@ mod tests {
     }
 
     #[test]
+    fn test_swap_windows_with_float_focused(){
+        float_and_tile_support::test_swap_windows_with_float_focused::<MinimiseWM>();
+    }
+
+    #[test]
     fn test_minimise() {
         minimise_support::test_minimise::<MinimiseWM>();
     }
