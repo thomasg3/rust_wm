@@ -65,124 +65,6 @@ pub struct FullscreenWM {
     pub window_to_info: BTreeMap<Window, WindowWithInfo>,
 }
 
-/// A manager who is solely occupied with managing which window is focused
-#[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct FocusManager {
-    /// A vector deque of windows, the first one is the next one to be focused, the last one is
-    /// the previous one to be focused.
-    pub windows: VecDeque<Window>,
-    /// Currently focused window.
-    pub focused_window: Option<Window>,
-}
-
-impl Manager for FocusManager {
-    fn get_windows(&self) -> Vec<Window> {
-        let mut windows: Vec<Window> = self.windows.iter().map(|w| *w).collect();
-        match self.focused_window {
-            Some(w) => windows.push(w),
-            None => {}
-        }
-        return windows;
-    }
-}
-
-impl FocusManager {
-    /// A new, empty FocusManager
-    pub fn new() -> FocusManager {
-        FocusManager {
-            windows: VecDeque::new(),
-            focused_window: None,
-        }
-    }
-
-    /// The currently focused window
-    pub fn get_focused_window(&self) -> Option<Window> {
-        self.focused_window
-    }
-
-    /// Add a window
-    pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
-        if !self.is_managed(window_with_info.window) {
-            match self.focused_window {
-                Some(w) => self.windows.push_back(w),
-                None => {}
-            }
-            self.focused_window = Some(window_with_info.window);
-            Ok(())
-        } else {
-            Err(StandardError::AlReadyManagedWindow(window_with_info.window))
-        }
-    }
-
-    /// remove a window
-    pub fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
-        match self.focused_window {
-            Some(w) => {
-                if w == window {
-                    self.focused_window = self.windows.pop_back();
-                    return Ok(());
-                }
-            }
-            None => {}
-        }
-        match self.windows.iter().position(|w| *w == window) {
-            None => Err(StandardError::UnknownWindow(window)),
-            Some(i) => {
-                self.windows.remove(i);
-                Ok(())
-            }
-        }
-    }
-
-    /// focus anohter window
-    pub fn focus_window(&mut self, window: Option<Window>) -> Result<(), StandardError> {
-        match self.focused_window {
-            /// if there is a focused window, put it at the back of the Deque and unfocus it
-            Some(w) => {
-                self.windows.push_back(w);
-                self.focused_window = None;
-            }
-            None => {}
-        };
-        match window {
-            /// if there is no window to focus, than we are done
-            None => Ok(()),
-            Some(window_value) => {
-                match self.windows.iter().position(|w| *w == window_value) {
-                    None => Err(StandardError::UnknownWindow(window_value)),
-                    Some(i) => {
-                        self.windows.remove(i);
-                        self.focused_window = window;
-                        Ok(())
-                    }
-                }
-            }
-        }
-    }
-
-    /// cycle focus
-    pub fn cycle_focus(&mut self, dir: PrevOrNext) {
-        match dir {
-            PrevOrNext::Next => {
-                self.focused_window.and_then(|w| {
-                    self.windows.push_back(w);
-                    Some(w)
-                });
-                self.focused_window = self.windows.pop_front()
-            }
-            PrevOrNext::Prev => {
-                self.focused_window.and_then(|w| {
-                    self.windows.push_front(w);
-                    Some(w)
-                });
-                self.focused_window = self.windows.pop_back()
-            }
-        }
-    }
-}
-
-
-
 // Now we start implementing our window manager
 impl WindowManager for FullscreenWM {
     /// We use `StandardError` as our `Error` type.
@@ -305,6 +187,124 @@ impl WindowManager for FullscreenWM {
     /// Replace the current screen with the new screen
     fn resize_screen(&mut self, screen: Screen) {
         self.screen = screen
+    }
+}
+
+/// A manager who is solely occupied with managing which window is focused
+#[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
+pub struct FocusManager {
+    /// A vector deque of windows, the first one is the next one to be focused, the last one is
+    /// the previous one to be focused.
+    pub windows: VecDeque<Window>,
+    /// Currently focused window.
+    pub focused_window: Option<Window>,
+}
+
+impl Manager for FocusManager {
+    type Error = StandardError;
+    
+    fn get_windows(&self) -> Vec<Window> {
+        let mut windows: Vec<Window> = self.windows.iter().map(|w| *w).collect();
+        match self.focused_window {
+            Some(w) => windows.push(w),
+            None => {}
+        }
+        return windows;
+    }
+
+    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
+        if !self.is_managed(window_with_info.window) {
+            match self.focused_window {
+                Some(w) => self.windows.push_back(w),
+                None => {}
+            }
+            self.focused_window = Some(window_with_info.window);
+            Ok(())
+        } else {
+            Err(StandardError::AlReadyManagedWindow(window_with_info.window))
+        }
+    }
+
+    fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
+        match self.focused_window {
+            Some(w) => {
+                if w == window {
+                    self.focused_window = self.windows.pop_back();
+                    return Ok(());
+                }
+            }
+            None => {}
+        }
+        match self.windows.iter().position(|w| *w == window) {
+            None => Err(StandardError::UnknownWindow(window)),
+            Some(i) => {
+                self.windows.remove(i);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl FocusManager {
+    /// A new, empty FocusManager
+    pub fn new() -> FocusManager {
+        FocusManager {
+            windows: VecDeque::new(),
+            focused_window: None,
+        }
+    }
+
+    /// The currently focused window
+    pub fn get_focused_window(&self) -> Option<Window> {
+        self.focused_window
+    }
+
+
+
+    /// focus anohter window
+    pub fn focus_window(&mut self, window: Option<Window>) -> Result<(), StandardError> {
+        match self.focused_window {
+            /// if there is a focused window, put it at the back of the Deque and unfocus it
+            Some(w) => {
+                self.windows.push_back(w);
+                self.focused_window = None;
+            }
+            None => {}
+        };
+        match window {
+            /// if there is no window to focus, than we are done
+            None => Ok(()),
+            Some(window_value) => {
+                match self.windows.iter().position(|w| *w == window_value) {
+                    None => Err(StandardError::UnknownWindow(window_value)),
+                    Some(i) => {
+                        self.windows.remove(i);
+                        self.focused_window = window;
+                        Ok(())
+                    }
+                }
+            }
+        }
+    }
+
+    /// cycle focus
+    pub fn cycle_focus(&mut self, dir: PrevOrNext) {
+        match dir {
+            PrevOrNext::Next => {
+                self.focused_window.and_then(|w| {
+                    self.windows.push_back(w);
+                    Some(w)
+                });
+                self.focused_window = self.windows.pop_front()
+            }
+            PrevOrNext::Prev => {
+                self.focused_window.and_then(|w| {
+                    self.windows.push_front(w);
+                    Some(w)
+                });
+                self.focused_window = self.windows.pop_back()
+            }
+        }
     }
 }
 

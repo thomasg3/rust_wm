@@ -32,7 +32,7 @@
 use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::{WindowManager, TilingSupport, FloatSupport, MinimiseSupport};
 
-use wm_common::Manager;
+use wm_common::{Manager, LayoutManager};
 use wm_common::error::FloatWMError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::VerticalLayout;
@@ -108,7 +108,7 @@ impl WindowManager for MinimiseWM {
         }
         self.focus_manager.focus_window(window)
             .map_err(|error| error.to_float_error())
-            .and_then(|_| self.float_or_tile_manager.focus_window(window))
+            .and_then(|_| self.float_or_tile_manager.focus_shifted(window))
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
@@ -203,8 +203,25 @@ pub struct MinimiseAssistantManager {
 }
 
 impl Manager for MinimiseAssistantManager {
+    type Error = FloatWMError;
+
     fn get_windows(&self) -> Vec<Window> {
         self.minis.keys().map(|w| *w).collect()
+    }
+
+    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), FloatWMError> {
+        if self.is_managed(window_with_info.window) {
+            Err(FloatWMError::AlReadyManagedWindow(window_with_info.window))
+        } else {
+            self.minis.insert(window_with_info.window, window_with_info);
+            Ok(())
+        }
+    }
+
+    fn remove_window(&mut self, window: Window) -> Result<(), FloatWMError> {
+        self.minis.remove(&window)
+            .map(|_| ())
+            .ok_or(FloatWMError::UnknownWindow(window))
     }
 }
 
@@ -216,22 +233,7 @@ impl MinimiseAssistantManager {
         }
     }
 
-    /// add a window
-    pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), FloatWMError> {
-        if self.is_managed(window_with_info.window) {
-            Err(FloatWMError::AlReadyManagedWindow(window_with_info.window))
-        } else {
-            self.minis.insert(window_with_info.window, window_with_info);
-            Ok(())
-        }
-    }
 
-    /// remove a window
-    pub fn remove_window(&mut self, window: Window) -> Result<(), FloatWMError> {
-        self.minis.remove(&window)
-            .map(|_| ())
-            .ok_or(FloatWMError::UnknownWindow(window))
-    }
 
     /// get specific window_info
     pub fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, FloatWMError> {

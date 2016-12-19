@@ -27,7 +27,7 @@
 use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::{WindowManager, TilingSupport};
 
-use wm_common::{TilingLayout, Manager};
+use wm_common::{TilingLayout, Manager, LayoutManager};
 use wm_common::error::StandardError;
 use a_fullscreen_wm::FocusManager;
 use std::collections::{HashMap,VecDeque};
@@ -134,9 +134,67 @@ pub struct TileManager<TL: TilingLayout> {
 }
 
 impl<TL> Manager for TileManager<TL> where TL : TilingLayout<Error=StandardError> {
+    type Error = StandardError;
+
     fn get_windows(&self) -> Vec<Window> {
         self.tiles.iter().map(|w| *w).collect()
     }
+
+    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
+        if !self.is_managed(window_with_info.window) {
+            self.tiles.push_back(window_with_info.window);
+            self.originals.insert(window_with_info.window, window_with_info);
+            Ok(())
+        } else {
+            Err(StandardError::AlReadyManagedWindow(window_with_info.window))
+        }
+    }
+
+    fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
+        match self.tiles.iter().position(|w| *w == window) {
+            None => Err(StandardError::UnknownWindow(window)),
+            Some(i) => {
+                self.tiles.remove(i);
+                self.originals.remove(&window);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl<TL> LayoutManager for TileManager<TL> where TL : TilingLayout<Error=StandardError> {
+    fn get_screen(&self) -> Screen {
+        self.screen
+    }
+
+    fn resize_screen(&mut self, screen: Screen) {
+        self.screen = screen
+    }
+
+    fn get_window_layout(&self) -> Vec<(Window, Geometry)> {
+        self.get_windows().iter()
+            // We know for sure the window argument in get_window_geometry is a managed window,
+            // because it comes directly from get_windows.
+            .map(|window| (*window, self.get_window_geometry(*window).unwrap()))
+            .collect()
+    }
+
+    fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, StandardError> {
+        self.get_window_geometry(window).and_then(|geometry| {
+            Ok(WindowWithInfo {
+                window: window,
+                geometry: geometry,
+                float_or_tile: FloatOrTile::Tile,
+                fullscreen: false,
+            })
+        })
+    }
+
+    fn focus_shifted(&mut self, window: Option<Window>) -> Result<(), Self::Error>{
+        // When the focus shifts, this LayoutManager does not need to do anything
+        Ok(())
+    }
+
 }
 
 impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
@@ -150,64 +208,12 @@ impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
         }
     }
 
-    /// Add window to this manager
-    pub fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), StandardError> {
-        if !self.is_managed(window_with_info.window) {
-            self.tiles.push_back(window_with_info.window);
-            self.originals.insert(window_with_info.window, window_with_info);
-            Ok(())
-        } else {
-            Err(StandardError::AlReadyManagedWindow(window_with_info.window))
-        }
-    }
-
-    /// Remove a window of this manager
-    pub fn remove_window(&mut self, window: Window) -> Result<(), StandardError> {
-        match self.tiles.iter().position(|w| *w == window) {
-            None => Err(StandardError::UnknownWindow(window)),
-            Some(i) => {
-                self.tiles.remove(i);
-                self.originals.remove(&window);
-                Ok(())
-            }
-        }
-    }
-
     /// Return the original WindowWithInfo of the given window
     pub fn get_original_window_info(&self, window: Window) -> Result<WindowWithInfo, StandardError> {
         self.originals.get(&window).map(|w| *w).ok_or(StandardError::UnknownWindow(window))
     }
 
-    /// The screen this manager operates in
-    pub fn get_screen(&self) -> Screen {
-        self.screen
-    }
 
-    /// Resize the screen this manager operates in
-    pub fn resize_screen(&mut self, screen: Screen) {
-        self.screen = screen
-    }
-
-    /// Get the Vec of all the managed windows and their layout
-    pub fn get_window_layout(&self) -> Vec<(Window, Geometry)> {
-        self.get_windows().iter()
-            // We know for sure the window argument in get_window_geometry is a managed window,
-            // because it comes directly from get_windows.
-            .map(|window| (*window, self.get_window_geometry(*window).unwrap()))
-            .collect()
-    }
-
-    /// get the current visible WindowWithInfo for window
-    pub fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, StandardError> {
-        self.get_window_geometry(window).and_then(|geometry| {
-            Ok(WindowWithInfo {
-                window: window,
-                geometry: geometry,
-                float_or_tile: FloatOrTile::Tile,
-                fullscreen: false,
-            })
-        })
-    }
 
     /// Return current master window
     pub fn get_master_window(&self) -> Option<Window> {

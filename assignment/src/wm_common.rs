@@ -24,13 +24,33 @@ pub trait TilingLayout: Encodable + Decodable + Debug + Clone  {
 
 /// Trait which all Managers should have
 pub trait Manager {
+    /// The type of error this Manager can return
+    type Error;
     /// Return all windows managed by this specific manager
     fn get_windows(&self) -> Vec<Window>;
+    /// Add a window
+    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error>;
+    /// Remove a window
+    fn remove_window(&mut self, window: Window) -> Result<(), Self::Error>;
 
     /// Returns true if window in get_windows() Vec, otherwise false
     fn is_managed(&self, window: Window) -> bool {
         self.get_windows().contains(&window)
     }
+}
+
+/// Trait that defines a Manager which has the task of managing the layout
+pub trait LayoutManager : Manager {
+    /// vector of the windows and their geometry in the right order
+    fn get_window_layout(&self) -> Vec<(Window, Geometry)>;
+    /// react to window being focused
+    fn focus_shifted(&mut self, window: Option<Window>) -> Result<(), Self::Error>;
+    /// get specific window_info
+    fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error>;
+    /// get screen
+    fn get_screen(&self) -> Screen;
+    /// resize screen
+    fn resize_screen(&mut self, screen: Screen);
 }
 
 /// Module for the used error types
