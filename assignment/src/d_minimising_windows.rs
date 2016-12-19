@@ -98,6 +98,14 @@ impl WindowManager for MinimizeWM {
     }
 
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
+        match window {
+            None => {},
+            Some(w) => {
+                if self.is_minimised(w) {
+                    self.toggle_minimised(w);
+                }
+            }
+        }
         self.focus_manager.focus_window(window)
             .map_err(|error| error.to_float_error())
             .and_then(|_| self.float_or_tile_manager.focus_window(window))
@@ -109,6 +117,7 @@ impl WindowManager for MinimizeWM {
 
     fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
         self.float_or_tile_manager.get_window_info(window)
+            .or_else(|_| self.minimize_manager.get_window_info(window))
     }
 
     fn get_screen(&self) -> Screen {
@@ -126,6 +135,9 @@ impl TilingSupport for MinimizeWM {
     }
 
     fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
+        if self.is_minimised(window) {
+            self.toggle_minimised(window);
+        }
         self.float_or_tile_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
@@ -140,6 +152,9 @@ impl FloatSupport for MinimizeWM {
     }
 
     fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error>{
+        if self.is_minimised(window) {
+            self.toggle_minimised(window);
+        }
         self.float_or_tile_manager.toggle_floating(window)
     }
 
@@ -156,13 +171,24 @@ impl MinimiseSupport for MinimizeWM {
     fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
         if self.is_minimised(window) {
             self.minimize_manager.get_window_info(window).and_then(|info| {
-                self.minimize_manager.remove_window(window);
-                self.float_or_tile_manager.add_window(info)
+                self.minimize_manager.remove_window(window)
+                    .and_then(|_| self.float_or_tile_manager.add_window(info)
+                        .and_then(|_| self.focus_window(Some(window))))
             })
         } else {
             self.float_or_tile_manager.get_window_info(window).and_then(|info| {
-                self.float_or_tile_manager.remove_window(window);
-                self.minimize_manager.add_window(info)
+                self.float_or_tile_manager.remove_window(window)
+                    .and_then(|_| self.minimize_manager.add_window(info)
+                        .and_then(|_| {
+                            match self.get_focused_window() {
+                                None => Ok(()),
+                                Some(w) => if window == w {
+                                    self.focus_window(None)
+                                } else {
+                                    Ok(())
+                                }
+                            }
+                        }))
             })
         }
     }
@@ -222,6 +248,7 @@ mod tests {
     use wm_common::tests::tiling_support;
     use wm_common::tests::float_support;
     use wm_common::tests::float_and_tile_support;
+    use wm_common::tests::minimise_support;
     use super::MinimizeWM;
     use b_tiling_wm::VerticalLayout;
     use cplwm_api::wm::WindowManager;
@@ -384,4 +411,26 @@ mod tests {
         // use the common test
         float_and_tile_support::test_swap_windows_on_floating(wm);
     }
+
+    #[test]
+    fn test_minimise() {
+        minimise_support::test_minimise::<MinimizeWM>();
+    }
+
+    #[test]
+    fn test_minimise_state_after_focus() {
+        minimise_support::test_minimise_state_after_focus::<MinimizeWM>();
+    }
+
+    #[test]
+    fn test_minimise_of_floating_window() {
+        minimise_support::test_minimise_of_floating_window::<MinimizeWM>();
+    }
+
+    #[test]
+    fn test_minimise_of_tiled_window() {
+        minimise_support::test_minimise_of_tiled_window::<MinimizeWM>();
+    }
+
+
 }

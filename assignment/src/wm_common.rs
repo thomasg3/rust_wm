@@ -131,10 +131,9 @@ pub mod error {
 /// Module which contains all the actual code to teŒst certain types of WindowManagers
 pub mod tests {
 
-
     /// Module to test minimize functionality
-    pub mod minise_support {
-        use cplwm_api::wm::{MinimiseSupport};
+    pub mod minimise_support {
+        use cplwm_api::wm::{MinimiseSupport, FloatSupport, TilingSupport};
         use cplwm_api::types::*;
 
         static SCREEN: Screen = Screen {
@@ -157,23 +156,99 @@ pub mod tests {
             assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
 
             // assert the correct properties
+            assert!(wm.is_managed(1));
+            assert!(wm.is_managed(2));
+            assert!(!wm.is_minimised(1));
+            assert!(!wm.is_minimised(2));
+            assert_eq!(2, wm.get_window_layout().windows.len());
 
             // toggle minize on float
+            assert!(wm.toggle_minimised(1).is_ok());
 
             // assert correct properties
+            assert!(wm.is_managed(1));
+            assert!(wm.is_managed(2));
+            assert!(wm.is_minimised(1));
+            assert!(!wm.is_minimised(2));
+            assert_eq!(1, wm.get_window_layout().windows.len());
 
-            // toggle minise on float
+            // toggle minize on float
+            assert!(wm.toggle_minimised(1).is_ok());
 
             // assert correct properties
+            assert!(wm.is_managed(1));
+            assert!(wm.is_managed(2));
+            assert!(!wm.is_minimised(1));
+            assert!(!wm.is_minimised(2));
+            assert_eq!(2, wm.get_window_layout().windows.len());
 
             // toggle minize on tile
+            assert!(wm.toggle_minimised(2).is_ok());
 
             // assert correct properties
+            assert!(wm.is_managed(1));
+            assert!(wm.is_managed(2));
+            assert!(!wm.is_minimised(1));
+            assert!(wm.is_minimised(2));
+            assert_eq!(1, wm.get_window_layout().windows.len());
 
-            // toggle minise on tile  
+            // toggle minize on tile
+            assert!(wm.toggle_minimised(2).is_ok());
 
             // assert correct properties
+            assert!(wm.is_managed(1));
+            assert!(wm.is_managed(2));
+            assert!(!wm.is_minimised(1));
+            assert!(!wm.is_minimised(2));
+            assert_eq!(2, wm.get_window_layout().windows.len());
+        }
 
+        ///Test to check whether focusing to a minimised window, unminimises the window and minimising
+        /// focused window makes the focus none
+        pub fn test_minimise_state_after_focus<T: MinimiseSupport>(){
+            let mut wm = T::new(SCREEN);
+
+            assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+
+            assert_eq!(Some(2), wm.get_focused_window());
+
+            assert!(wm.toggle_minimised(2).is_ok());
+
+            assert_eq!(None, wm.get_focused_window());
+
+            assert!(wm.focus_window(Some(2)).is_ok());
+
+            assert!(!wm.is_minimised(2));
+        }
+
+        /// Test to check minimise keeps the window info of a float exactly the same
+        pub fn test_minimise_of_floating_window<T: FloatSupport+MinimiseSupport>(){
+            let mut wm = T::new(SCREEN);
+            let window_with_info = WindowWithInfo::new_float(1, SOME_GEOM);
+
+            assert!(wm.add_window(window_with_info).is_ok());
+            assert_eq!(window_with_info, wm.get_window_info(1).unwrap());
+
+            assert!(wm.toggle_minimised(1).is_ok());
+            assert_eq!(window_with_info, wm.get_window_info(1).unwrap());
+
+            assert!(wm.toggle_minimised(1).is_ok());
+            assert_eq!(window_with_info, wm.get_window_info(1).unwrap());
+
+        }
+
+        /// Test to check minimise keeps a tiled window a tiled window
+        pub fn test_minimise_of_tiled_window<T: TilingSupport+MinimiseSupport>(){
+            let mut wm = T::new(SCREEN);
+            assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
+            assert_eq!(FloatOrTile::Tile, wm.get_window_info(1).unwrap().float_or_tile);
+
+            assert!(wm.toggle_minimised(1).is_ok());
+            assert_eq!(FloatOrTile::Tile, wm.get_window_info(1).unwrap().float_or_tile);
+
+            assert!(wm.toggle_minimised(1).is_ok());
+            assert_eq!(FloatOrTile::Tile, wm.get_window_info(1).unwrap().float_or_tile);
 
         }
     }
