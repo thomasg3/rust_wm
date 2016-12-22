@@ -18,11 +18,9 @@
 //! or you want to explain your approach, write it down after the comments
 //! section.
 //!
-//! COMPLETED: ?
+//! COMPLETED: YES
 //!
-//! COMMENTS:
-//!
-//! ...
+//! COMMENTS: /
 //!
 
 // Add imports here
