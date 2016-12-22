@@ -28,12 +28,12 @@
 //! or you want to explain your approach, write it down after the comments
 //! section.
 //!
-//! COMPLETED: ?
+//! COMPLETED: YES
 //!
 //! COMMENTS:
 //!
-//! This T
-//!
+//! This is a pretty simple Layout Scheme. The details are in the documentation for the
+//! BasicDockLayout struct.
 //!
 //! **TODO**: If you did not come up yourself with this layout, mention its
 //! source below.
@@ -138,7 +138,62 @@ impl TilingSupport for TilingWM {
 }
 
 
-/// Basic dock layout
+/// Basic dock layout that behaves as follows:
+///
+/// After adding the first tile
+/// ```
+/// +---------------------+
+/// |                     |
+/// |                     |
+/// |          1          |
+/// |                     |
+/// |                     |
+/// +---------------------+
+/// ```
+/// Adding a second tile creates a left dock which takes 1/5th of the screen width
+/// ```
+/// +---------------------+
+/// |   |                 |
+/// |   |                 |
+/// | 2 |      1          |
+/// |   |                 |
+/// |   |                 |
+/// +---------------------+
+/// ```
+/// Adding a thrid tile creates a right dock which takes also 1/5th of the screen width
+/// ```
+/// +---------------------+
+/// |   |             |   |
+/// |   |             |   |
+/// | 2 |      1      | 3 |
+/// |   |             |   |
+/// |   |             |   |
+/// +---------------------+
+/// ```
+/// Adding a fourth tile creates a bottom dock wicht takes the remaining width, and 1/5th of the
+/// height of the screen.
+/// ```
+/// +---------------------+
+/// |   |             |   |
+/// |   |      1      |   |
+/// | 2 |             | 3 |
+/// |   |-------------|   |
+/// |   |      4      |   |
+/// +---------------------+
+/// ```
+/// Adding additional tiles will divide the following dock (in the same order) in equal parts
+/// Removing a tile, will however move over the enite structure, for example removing the second
+/// tile in the fourth example will render this
+/// ```
+/// +---------------------+
+/// |   |             |   |
+/// |   |             |   |
+/// | 3 |      1      | 4 |
+/// |   |             |   |
+/// |   |             |   |
+/// +---------------------+
+/// ```
+/// One is the master tile. Swapping with the master tile works as expected, as does swap windows
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct BasicDockLayout {
 }
