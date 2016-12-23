@@ -24,7 +24,8 @@ pub trait TilingLayout: Encodable + Decodable + Debug + Clone  {
     fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>;
 }
 
-/// Trait which all Managers should have
+/// Trait which all Managers should have. A Manager is a component of a WindowManager with a
+/// specific task
 pub trait Manager {
     /// The type of error this Manager can return
     type Error;
@@ -71,7 +72,7 @@ pub trait FloatTrait : LayoutManager {
     fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>;
 }
 
-/// combining TilingTrait and FloatTrait
+/// Trait combining TilingTrait and FloatTrait
 pub trait FloatAndTileTrait : TilingTrait + FloatTrait {
     /// get all floating windows
     fn get_floating_windows(&self) -> Vec<Window>;
@@ -141,7 +142,7 @@ pub mod error {
     }
 
 
-    /// A simple StandardError for all WindowManagers
+    /// An error which expands on StandardError by adding a NotFloatingWindowError
     #[derive(Debug)]
     pub enum FloatWMError {
         /// This window is not known by the window manager.
@@ -223,7 +224,7 @@ pub mod error {
 
 
 
-/// Module which contains all the actual code to teŒst certain types of WindowManagers
+/// Module which contains all the actual code to test certain types of WindowManagers
 pub mod tests {
 
     /// Module to test minimize functionality
@@ -244,6 +245,8 @@ pub mod tests {
         };
 
         /// Test the correct order of the minimised windows
+        /// The correct order is in order of being minimised. The most recent one is last in the
+        /// vector.
         pub fn test_minimise_order<T: MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
 
@@ -263,7 +266,8 @@ pub mod tests {
             assert_eq!(vec![1,3,2], wm.get_minimised_windows());
         }
 
-        /// Test whether toggle_minimised hides the windows, but keeps them managed, and adds them again later with the correct properties
+        /// Test whether toggle_minimised hides the windows, but keeps them managed, and adds them
+        /// again later with the correct properties it had before being minimised.
         pub fn test_minimise<T: MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
 
@@ -318,8 +322,8 @@ pub mod tests {
             assert_eq!(2, wm.get_window_layout().windows.len());
         }
 
-        ///Test to check whether focusing to a minimised window, unminimises the window and minimising
-        /// focused window makes the focus none
+        /// Test to check whether focusing to a minimised window, unminimises the window and
+        /// minimising focused window makes the focus none
         pub fn test_minimise_state_after_focus<T: MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
 
@@ -353,7 +357,8 @@ pub mod tests {
             assert!(!wm.is_minimised(1));
         }
 
-        /// Test to check minimise keeps the window info of a float exactly the same
+        /// Test to check minimise and unminimise directly keeps the window info of a float
+        /// exactly the same
         pub fn test_minimise_of_floating_window<T: FloatSupport+MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
             let window_with_info = WindowWithInfo::new_float(1, SOME_GEOM);
@@ -369,7 +374,7 @@ pub mod tests {
 
         }
 
-        /// Test to check minimise keeps a tiled window a tiled window
+        /// Test to check minimise and unminimise directly keeps a tiled window a tiled window
         pub fn test_minimise_of_tiled_window<T: TilingSupport+MinimiseSupport>(){
             let mut wm = T::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
@@ -385,7 +390,8 @@ pub mod tests {
     }
 
 
-    /// Module for tests concerning window managers which support aswell as floating as tiled windows
+    /// Module for tests concerning window managers which support both floating and tiled
+    /// windows
     pub mod float_and_tile_support {
         use cplwm_api::wm::{TilingSupport,FloatSupport};
         use cplwm_api::types::*;
@@ -449,7 +455,8 @@ pub mod tests {
             assert_eq!(SOME_GEOM_B, wm.get_window_info(2).unwrap().geometry);
         }
 
-        /// test swapping floating window with master tile works as expected: current master -> floating, floating -> master
+        /// test swapping floating window with master tile works as expected: the current master
+        /// becomes floating, the floating window becomes the master
         pub fn test_swapping_master_with_floating_window<T: TilingSupport+FloatSupport>(){
             let mut wm = T::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM_A)).is_ok());
@@ -459,7 +466,6 @@ pub mod tests {
             assert_eq!(2, wm.get_master_window().unwrap());
             assert!(wm.is_floating(1));
             assert_eq!(SOME_GEOM_A, wm.get_window_info(1).unwrap().geometry);
-
         }
 
         /// test swap_windows does nothing for a floating window
@@ -514,7 +520,8 @@ pub mod tests {
             height: 100,
         };
 
-        /// Test the get_floating_windows functionality
+        /// Test the get_floating_windows functionality which returns all floating windows which
+        /// are managed, and nothing more.
         pub fn test_get_floating_windows<F: FloatSupport>(){
             let mut wm = F::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
@@ -529,7 +536,8 @@ pub mod tests {
             assert!(!floaters.contains(&4));
         }
 
-        /// Test toggle_floating
+        /// Test toggle_floating which should make a floating window tiled and vice versa. The
+        /// Geometry of the floating window should be kept when toggling twice (back to floating).
         pub fn test_toggle_floating<F: FloatSupport>(){
             let mut wm = F::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM_A)).is_ok());
@@ -559,7 +567,8 @@ pub mod tests {
             assert!(wm.toggle_floating(3).is_err());
         }
 
-        /// Test set_window_geometry
+        /// Test set_window_geometry, changing the geometry of floating window. Should return an
+        /// error when the targeted window is tiled.
         pub fn test_set_window_geometry<F: FloatSupport>(){
             let mut wm = F::new(SCREEN);
             assert!(wm.add_window(WindowWithInfo::new_float(1, SOME_GEOM)).is_ok());
@@ -582,7 +591,7 @@ pub mod tests {
             assert!(wm.set_window_geometry(3, other_geometry).is_err());
         }
 
-        /// Test to check floating windows are above tiled windows
+        /// Test to check floating windows are above tiled windows in windowLayout
         pub fn test_window_layout_order<F: FloatSupport>(){
             let mut wm = F::new(SCREEN);
             assert_eq!(WindowLayout::new(), wm.get_window_layout());
@@ -604,7 +613,7 @@ pub mod tests {
             assert_eq!(2, window_layout[3].0);
         }
 
-        /// Test to check focusing on a floating window puts it on top
+        /// Test to check focusing on a floating window puts it on top of ohter floating windows
         pub fn test_focus_floating_window_order<F: FloatSupport>(){
             let mut wm = F::new(SCREEN);
             assert_eq!(WindowLayout::new(), wm.get_window_layout());
@@ -646,7 +655,7 @@ pub mod tests {
         };
 
         /// test if there is a master window when there are windows, and no master tile if there
-        /// are on windows.
+        /// are no windows.
         pub fn test_master_tile<T: TilingSupport>() {
             let mut wm = T::new(SCREEN);
             assert_eq!(None, wm.get_master_window());

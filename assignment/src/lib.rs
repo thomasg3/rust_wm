@@ -42,7 +42,7 @@
 //! 1.12.1, you don't have to do anything. Otherwise, replace the version
 //! below with the output of `rustc --version`.
 //!
-//! VERSION: rustc 1.12.1 (d4f39402a 2016-10-19)
+//! VERSION: rustc 1.13.0 (2c6933acc 2016-11-07)
 //!
 //! If you are using a nightly as opposed to a stable version of Rust, explain
 //! why below:
