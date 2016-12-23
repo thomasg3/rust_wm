@@ -20,9 +20,9 @@
 // Add imports here
 use std::cmp;
 use std::collections::VecDeque;
-use cplwm_api::types::{Window, PrevOrNext, Screen, Geometry, GapSize, WindowWithInfo, WindowLayout};
-use cplwm_api::wm::{WindowManager, TilingSupport, GapSupport};
-use wm_common::{Manager, LayoutManager, TilingTrait, TilingLayout, GapTrait};
+use cplwm_api::types::{GapSize, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
+use cplwm_api::wm::{GapSupport, TilingSupport, WindowManager};
+use wm_common::{GapTrait, LayoutManager, Manager, TilingLayout, TilingTrait};
 use wm_common::error::StandardError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::{TileManager, VerticalLayout};
@@ -35,7 +35,7 @@ pub type WMName = TilingWM;
 /// The TilingWM as described in the assignment. Will implement the
 /// WindowManager and the TilingSupport
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct TilingWM{
+pub struct TilingWM {
     /// The manager used to manage the current focus
     pub focus_manager: FocusManager,
     /// The managar used to manage the tiles
@@ -47,14 +47,14 @@ impl WindowManager for TilingWM {
     type Error = StandardError;
 
     /// constructor with given screen
-    fn new(screen: Screen) -> TilingWM  {
+    fn new(screen: Screen) -> TilingWM {
         TilingWM {
             focus_manager: FocusManager::new(),
             tile_manager: TileManager::new(screen,
-                GapLayout{
-                    tiling_layout: VerticalLayout{},
-                    gap: 0,
-                }),
+                                           GapLayout {
+                                               tiling_layout: VerticalLayout {},
+                                               gap: 0,
+                                           }),
         }
     }
 
@@ -66,15 +66,15 @@ impl WindowManager for TilingWM {
         self.focus_manager.get_focused_window()
     }
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
-        self.focus_manager.add_window(window_with_info).and_then(|_| {
-            self.tile_manager.add_window(window_with_info)
-        })
+        self.focus_manager
+            .add_window(window_with_info)
+            .and_then(|_| self.tile_manager.add_window(window_with_info))
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
-        self.focus_manager.remove_window(window).and_then(|_| {
-            self.tile_manager.remove_window(window)
-        })
+        self.focus_manager
+            .remove_window(window)
+            .and_then(|_| self.tile_manager.remove_window(window))
     }
 
     fn get_window_layout(&self) -> WindowLayout {
@@ -110,11 +110,11 @@ impl TilingSupport for TilingWM {
         self.tile_manager.get_master_window()
     }
 
-    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error> {
         self.tile_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
-    fn swap_windows(&mut self, dir: PrevOrNext){
+    fn swap_windows(&mut self, dir: PrevOrNext) {
         self.tile_manager.swap_windows(dir, &self.focus_manager)
     }
 }
@@ -123,12 +123,12 @@ impl GapSupport for TilingWM {
     fn get_gap(&self) -> GapSize {
         self.tile_manager.get_gap()
     }
-    fn set_gap(&mut self, gap: GapSize){
+    fn set_gap(&mut self, gap: GapSize) {
         self.tile_manager.set_gap(gap)
     }
 }
 
-impl<T : GapTrait> TileManager<T> {
+impl<T: GapTrait> TileManager<T> {
     fn get_gap(&self) -> GapSize {
         self.layout.get_gap()
     }
@@ -161,18 +161,25 @@ impl<T: TilingLayout> TilingLayout for GapLayout<T> {
     // use the same type for Error as the wrapped layout
     type Error = T::Error;
 
-    fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window>{
+    fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window> {
         self.tiling_layout.get_master_window(tiles)
     }
-    fn swap_with_master(&self, window: Window, tiles: &mut VecDeque<Window>) -> Result<(), Self::Error>{
+    fn swap_with_master(&self,
+                        window: Window,
+                        tiles: &mut VecDeque<Window>)
+                        -> Result<(), Self::Error> {
         self.tiling_layout.swap_with_master(window, tiles)
     }
-    fn swap_windows(&self, window:Window, dir:PrevOrNext, tiles: &mut VecDeque<Window>){
+    fn swap_windows(&self, window: Window, dir: PrevOrNext, tiles: &mut VecDeque<Window>) {
         self.tiling_layout.swap_windows(window, dir, tiles)
     }
-    fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>{
+    fn get_window_geometry(&self,
+                           window: Window,
+                           screen: &Screen,
+                           tiles: &VecDeque<Window>)
+                           -> Result<Geometry, Self::Error> {
         self.tiling_layout.get_window_geometry(window, screen, tiles).and_then(|geometry| {
-            Ok(Geometry{
+            Ok(Geometry {
                 x: geometry.x + self.gap as i32,
                 y: geometry.y + self.gap as i32,
                 width: cmp::max(0, geometry.width as i32 - 2 * self.gap as i32) as u32,
@@ -202,11 +209,11 @@ mod vertical_layout_tests {
     };
 
     #[test]
-    fn test_vertical_layout_no_window(){
+    fn test_vertical_layout_no_window() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         // Initialize empty tile Deque
         let tiles = VecDeque::new();
@@ -216,11 +223,11 @@ mod vertical_layout_tests {
     }
 
     #[test]
-    fn test_vertical_layout_one_window(){
+    fn test_vertical_layout_one_window() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -228,20 +235,21 @@ mod vertical_layout_tests {
         tiles.push_back(1);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: SCREEN1.width,
-            height: SCREEN1.height,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: SCREEN1.width,
+                       height: SCREEN1.height,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
     }
 
     #[test]
-    fn test_vertical_layout_one_window_gapped(){
+    fn test_vertical_layout_one_window_gapped() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 5
+            tiling_layout: VerticalLayout {},
+            gap: 5,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -249,20 +257,21 @@ mod vertical_layout_tests {
         tiles.push_back(1);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 5,
-            y: 5,
-            width: SCREEN1.width - 10,
-            height: SCREEN1.height - 10,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 5,
+                       y: 5,
+                       width: SCREEN1.width - 10,
+                       height: SCREEN1.height - 10,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
     }
 
     #[test]
-    fn test_vertical_layout_two_windows(){
+    fn test_vertical_layout_two_windows() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -271,30 +280,32 @@ mod vertical_layout_tests {
         tiles.push_back(2);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 300,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 300,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 100,
-            height: 300,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 100,
+                       height: 300,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
         // any other window should return an error
         assert!(layout.get_window_geometry(3, &SCREEN1, &tiles).is_err());
     }
 
     #[test]
-    fn test_vertical_layout_two_windows_gapped(){
+    fn test_vertical_layout_two_windows_gapped() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 5
+            tiling_layout: VerticalLayout {},
+            gap: 5,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -303,30 +314,32 @@ mod vertical_layout_tests {
         tiles.push_back(2);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 5,
-            y: 5,
-            width: 90,
-            height: 290,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 5,
+                       y: 5,
+                       width: 90,
+                       height: 290,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 105,
-            y: 5,
-            width: 90,
-            height: 290,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 105,
+                       y: 5,
+                       width: 90,
+                       height: 290,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
         // any other window should return an error
         assert!(layout.get_window_geometry(3, &SCREEN1, &tiles).is_err());
     }
 
     #[test]
-    fn test_vertical_layout_multiple_windows_regular_screen(){
+    fn test_vertical_layout_multiple_windows_regular_screen() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -337,41 +350,45 @@ mod vertical_layout_tests {
         tiles.push_back(4);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 300,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 300,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 100,
-            height: 100,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 100,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 100,
-            width: 100,
-            height: 100,
-        },layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 100,
+                       width: 100,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 200,
-            width: 100,
-            height: 100,
-        },layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 200,
+                       width: 100,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
     }
 
     #[test]
-    fn test_vertical_layout_multiple_windows_regular_screen_gapped(){
+    fn test_vertical_layout_multiple_windows_regular_screen_gapped() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 5
+            tiling_layout: VerticalLayout {},
+            gap: 5,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -382,89 +399,46 @@ mod vertical_layout_tests {
         tiles.push_back(4);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 5,
-            y: 5,
-            width: 90,
-            height: 290,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 5,
+                       y: 5,
+                       width: 90,
+                       height: 290,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 105,
-            y: 5,
-            width: 90,
-            height: 90,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 105,
+                       y: 5,
+                       width: 90,
+                       height: 90,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 105,
-            y: 105,
-            width: 90,
-            height: 90,
-        },layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 105,
+                       y: 105,
+                       width: 90,
+                       height: 90,
+                   },
+                   layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 105,
-            y: 205,
-            width: 90,
-            height: 90,
-        },layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
-    }
-
-    // test to see this layout handles tiles which should round the heights correctly
-    #[test]
-    fn test_vertical_layout_multiple_windows_irregular_screen(){
-        // Initialize new GapLayout strategy
-        let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
-        };
-        // Initialize empty tile Deque
-        let mut tiles = VecDeque::new();
-        // Push 4 tiles on the Deque, the first one will be the master in this layout.
-        tiles.push_back(1);
-        tiles.push_back(2);
-        tiles.push_back(3);
-        tiles.push_back(4);
-
-        // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 150,
-            height: 401,
-        },layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
-
-        assert_eq!(Geometry{
-            x: 150,
-            y: 0,
-            width: 151,
-            height: 133,
-        },layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
-
-        assert_eq!(Geometry{
-            x: 150,
-            y: 133,
-            width: 151,
-            height: 133,
-        },layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
-
-        // last one should get remaining screen space.
-        assert_eq!(Geometry{
-            x: 150,
-            y: 266,
-            width: 151,
-            height: 135,
-        },layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 105,
+                       y: 205,
+                       width: 90,
+                       height: 90,
+                   },
+                   layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
     }
 
     // test to see this layout handles tiles which should round the heights correctly
     #[test]
-    fn test_vertical_layout_multiple_windows_irregular_screen_gapped(){
+    fn test_vertical_layout_multiple_windows_irregular_screen() {
         // Initialize new GapLayout strategy
         let layout = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 5
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
@@ -475,34 +449,89 @@ mod vertical_layout_tests {
         tiles.push_back(4);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 5,
-            y: 5,
-            width: 140,
-            height: 391,
-        },layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 150,
+                       height: 401,
+                   },
+                   layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 155,
-            y: 5,
-            width: 141,
-            height: 123,
-        },layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 150,
+                       y: 0,
+                       width: 151,
+                       height: 133,
+                   },
+                   layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 155,
-            y: 138,
-            width: 141,
-            height: 123,
-        },layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 150,
+                       y: 133,
+                       width: 151,
+                       height: 133,
+                   },
+                   layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
 
         // last one should get remaining screen space.
-        assert_eq!(Geometry{
-            x: 155,
-            y: 271,
-            width: 141,
-            height: 125,
-        },layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 150,
+                       y: 266,
+                       width: 151,
+                       height: 135,
+                   },
+                   layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
+    }
+
+    // test to see this layout handles tiles which should round the heights correctly
+    #[test]
+    fn test_vertical_layout_multiple_windows_irregular_screen_gapped() {
+        // Initialize new GapLayout strategy
+        let layout = GapLayout {
+            tiling_layout: VerticalLayout {},
+            gap: 5,
+        };
+        // Initialize empty tile Deque
+        let mut tiles = VecDeque::new();
+        // Push 4 tiles on the Deque, the first one will be the master in this layout.
+        tiles.push_back(1);
+        tiles.push_back(2);
+        tiles.push_back(3);
+        tiles.push_back(4);
+
+        // compare to exptected geometry
+        assert_eq!(Geometry {
+                       x: 5,
+                       y: 5,
+                       width: 140,
+                       height: 391,
+                   },
+                   layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry {
+                       x: 155,
+                       y: 5,
+                       width: 141,
+                       height: 123,
+                   },
+                   layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
+
+        assert_eq!(Geometry {
+                       x: 155,
+                       y: 138,
+                       width: 141,
+                       height: 123,
+                   },
+                   layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
+
+        // last one should get remaining screen space.
+        assert_eq!(Geometry {
+                       x: 155,
+                       y: 271,
+                       width: 141,
+                       height: 125,
+                   },
+                   layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
     }
 }
 
@@ -517,12 +546,12 @@ mod tests {
     use b_tiling_wm::VerticalLayout;
 
     #[test]
-    fn test_empty_tiling_wm(){
+    fn test_empty_tiling_wm() {
         window_manager::test_empty_wm::<TilingWM>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows(){
+    fn test_adding_and_removing_some_windows() {
         window_manager::test_adding_and_removing_windows::<TilingWM>();
     }
 
@@ -542,49 +571,49 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info(){
+    fn test_get_window_info() {
         window_manager::test_get_window_info::<TilingWM>();
     }
 
     #[test]
-    fn test_resize_screen(){
+    fn test_resize_screen() {
         window_manager::test_resize_screen::<TilingWM>();
     }
 
     #[test]
-    fn test_get_master_window(){
+    fn test_get_master_window() {
         tiling_support::test_master_tile::<TilingWM>();
     }
 
     #[test]
-    fn test_swap_with_master_window(){
+    fn test_swap_with_master_window() {
         tiling_support::test_swap_with_master::<TilingWM>();
     }
 
 
     #[test]
-    fn test_swap_windows(){
+    fn test_swap_windows() {
         let layout: GapLayout<VerticalLayout> = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         tiling_support::test_swap_windows::<TilingWM, GapLayout<VerticalLayout>>(layout);
     }
 
     #[test]
-    fn test_tiling_layout(){
+    fn test_tiling_layout() {
         let layout: GapLayout<VerticalLayout> = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         tiling_support::test_get_window_info::<TilingWM, GapLayout<VerticalLayout>>(layout);
     }
 
     #[test]
-    fn test_set_gap(){
+    fn test_set_gap() {
         let layout: GapLayout<VerticalLayout> = GapLayout {
-            tiling_layout: VerticalLayout{},
-            gap: 0
+            tiling_layout: VerticalLayout {},
+            gap: 0,
         };
         gap_support::test_set_gap::<TilingWM, GapLayout<VerticalLayout>>(layout);
     }

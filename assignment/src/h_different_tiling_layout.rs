@@ -35,9 +35,9 @@
 
 // Add imports here
 use cplwm_api::types::{Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
-use cplwm_api::wm::{WindowManager, TilingSupport};
+use cplwm_api::wm::{TilingSupport, WindowManager};
 
-use wm_common::{TilingLayout, Manager, LayoutManager, TilingTrait};
+use wm_common::{LayoutManager, Manager, TilingLayout, TilingTrait};
 use wm_common::error::StandardError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::TileManager;
@@ -52,7 +52,7 @@ pub type WMName = TilingWM;
 /// which uses a TilingLayout strategy for building the geometries. In this case the LayoutManager
 /// strategy is BasicDockLayout.
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct TilingWM{
+pub struct TilingWM {
     /// The manager used to manage the current focus
     pub focus_manager: FocusManager,
     /// The managar used to manage the tiles
@@ -64,10 +64,10 @@ impl WindowManager for TilingWM {
     type Error = StandardError;
 
     /// constructor with given screen
-    fn new(screen: Screen) -> TilingWM  {
+    fn new(screen: Screen) -> TilingWM {
         TilingWM {
             focus_manager: FocusManager::new(),
-            tile_manager: TileManager::new(screen, BasicDockLayout{}),
+            tile_manager: TileManager::new(screen, BasicDockLayout {}),
         }
     }
 
@@ -79,15 +79,15 @@ impl WindowManager for TilingWM {
         self.focus_manager.get_focused_window()
     }
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
-        self.focus_manager.add_window(window_with_info).and_then(|_| {
-            self.tile_manager.add_window(window_with_info)
-        })
+        self.focus_manager
+            .add_window(window_with_info)
+            .and_then(|_| self.tile_manager.add_window(window_with_info))
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
-        self.focus_manager.remove_window(window).and_then(|_| {
-            self.tile_manager.remove_window(window)
-        })
+        self.focus_manager
+            .remove_window(window)
+            .and_then(|_| self.tile_manager.remove_window(window))
     }
 
     fn get_window_layout(&self) -> WindowLayout {
@@ -123,11 +123,11 @@ impl TilingSupport for TilingWM {
         self.tile_manager.get_master_window()
     }
 
-    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error> {
         self.tile_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
-    fn swap_windows(&mut self, dir: PrevOrNext){
+    fn swap_windows(&mut self, dir: PrevOrNext) {
         self.tile_manager.swap_windows(dir, &self.focus_manager)
     }
 }
@@ -141,18 +141,21 @@ pub struct BasicDockLayout {
 impl TilingLayout for BasicDockLayout {
     type Error = StandardError;
 
-    fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window>{
-        return tiles.front().map(|w| *w)
+    fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window> {
+        return tiles.front().map(|w| *w);
     }
 
-    fn swap_with_master(&self, window: Window, tiles: &mut VecDeque<Window>) -> Result<(), Self::Error>{
+    fn swap_with_master(&self,
+                        window: Window,
+                        tiles: &mut VecDeque<Window>)
+                        -> Result<(), Self::Error> {
         match self.get_master_window(tiles) {
             // There is no master window, so there are no windows, so the window argument can not be
             // known
             None => Err(StandardError::UnknownWindow(window)),
             Some(_) => {
                 // search position of the window arg
-                match tiles.iter().position(|w| *w == window){
+                match tiles.iter().position(|w| *w == window) {
                     // the window argument is not managed by this window manager
                     None => Err(StandardError::UnknownWindow(window)),
                     Some(index) => {
@@ -165,7 +168,7 @@ impl TilingLayout for BasicDockLayout {
         }
     }
 
-    fn swap_windows(&self, window:Window, dir: PrevOrNext, tiles: &mut VecDeque<Window>){
+    fn swap_windows(&self, window: Window, dir: PrevOrNext, tiles: &mut VecDeque<Window>) {
         tiles.iter().position(|w| *w == window).and_then(|index| {
             let n = tiles.len() as i32;
             let neighbour = (neighbour_of(&(index as i32), dir) + n) % n;
@@ -175,38 +178,51 @@ impl TilingLayout for BasicDockLayout {
     }
 
 
-    fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>{
+    fn get_window_geometry(&self,
+                           window: Window,
+                           screen: &Screen,
+                           tiles: &VecDeque<Window>)
+                           -> Result<Geometry, Self::Error> {
         match tiles.iter().position(|w| *w == window) {
             None => Err(StandardError::UnknownWindow(window)),
-            Some(0) => self.get_master_window_geometry(screen, tiles).ok_or(StandardError::UnknownWindow(window)),
+            Some(0) => {
+                self.get_master_window_geometry(screen, tiles)
+                    .ok_or(StandardError::UnknownWindow(window))
+            }
             Some(index) => {
                 match index % 3 {
                     // Bottom dock
                     0 => {
-                        let dock_tiles = tiles.iter().enumerate()
-                            .filter(|&(i,_)| i % 3 == 0 && i != 0)
+                        let dock_tiles = tiles.iter()
+                            .enumerate()
+                            .filter(|&(i, _)| i % 3 == 0 && i != 0)
                             .map(|(_, t)| *t)
                             .collect();
-                        self.get_bottom_dock_geometry(index / 3, screen, dock_tiles).ok_or(StandardError::UnknownWindow(window))
-                    },
+                        self.get_bottom_dock_geometry(index / 3, screen, dock_tiles)
+                            .ok_or(StandardError::UnknownWindow(window))
+                    }
                     // Left dock
                     1 => {
-                        let dock_tiles = tiles.iter().enumerate()
-                            .filter(|&(i,_)| i % 3 == 1)
+                        let dock_tiles = tiles.iter()
+                            .enumerate()
+                            .filter(|&(i, _)| i % 3 == 1)
                             .map(|(_, t)| *t)
                             .collect();
-                        self.get_left_dock_geometry(index / 3, screen, dock_tiles).ok_or(StandardError::UnknownWindow(window))
-                    },
+                        self.get_left_dock_geometry(index / 3, screen, dock_tiles)
+                            .ok_or(StandardError::UnknownWindow(window))
+                    }
                     // Right dock
                     2 => {
-                        let dock_tiles = tiles.iter().enumerate()
-                            .filter(|&(i,_)| i % 3 == 2)
+                        let dock_tiles = tiles.iter()
+                            .enumerate()
+                            .filter(|&(i, _)| i % 3 == 2)
                             .map(|(_, t)| *t)
                             .collect();
-                        self.get_right_dock_geometry(index / 3, screen, dock_tiles).ok_or(StandardError::UnknownWindow(window))
-                    },
+                        self.get_right_dock_geometry(index / 3, screen, dock_tiles)
+                            .ok_or(StandardError::UnknownWindow(window))
+                    }
                     // an usize % 3 can only return 0, 1, or 2, so anything else would indicate some serious problems.
-                    _ => panic!("Math broke =(")
+                    _ => panic!("Math broke =("),
                 }
             }
         }
@@ -215,9 +231,12 @@ impl TilingLayout for BasicDockLayout {
 
 
 impl BasicDockLayout {
-
-    fn get_left_dock_geometry(&self, index: usize, screen: &Screen, dock_tiles: Vec<Window>) -> Option<Geometry> {
-        if index >= dock_tiles.len(){
+    fn get_left_dock_geometry(&self,
+                              index: usize,
+                              screen: &Screen,
+                              dock_tiles: Vec<Window>)
+                              -> Option<Geometry> {
+        if index >= dock_tiles.len() {
             None
         } else {
             let width_part: u32 = screen.width / 5;
@@ -231,7 +250,11 @@ impl BasicDockLayout {
         }
     }
 
-    fn get_right_dock_geometry(&self, index: usize, screen: &Screen, dock_tiles: Vec<Window>) -> Option<Geometry> {
+    fn get_right_dock_geometry(&self,
+                               index: usize,
+                               screen: &Screen,
+                               dock_tiles: Vec<Window>)
+                               -> Option<Geometry> {
         let width_part: u32 = screen.width / 5;
         let height: u32 = (screen.height as i32 / dock_tiles.len() as i32) as u32;
         Some(Geometry {
@@ -242,7 +265,11 @@ impl BasicDockLayout {
         })
     }
 
-    fn get_bottom_dock_geometry(&self, index: usize, screen: &Screen, dock_tiles: Vec<Window>) -> Option<Geometry> {
+    fn get_bottom_dock_geometry(&self,
+                                index: usize,
+                                screen: &Screen,
+                                dock_tiles: Vec<Window>)
+                                -> Option<Geometry> {
         let height_part: u32 = screen.height / 5;
         let width_part: u32 = screen.width / 5;
         let width: u32 = (screen.width as i32 / dock_tiles.len() as i32) as u32;
@@ -254,43 +281,54 @@ impl BasicDockLayout {
         })
     }
 
-    fn get_master_window_geometry(&self, screen: &Screen, tiles: &VecDeque<Window>) -> Option<Geometry> {
+    fn get_master_window_geometry(&self,
+                                  screen: &Screen,
+                                  tiles: &VecDeque<Window>)
+                                  -> Option<Geometry> {
         let width_part: u32 = screen.width / 5;
         let height_part: u32 = screen.height / 5;
-        match tiles.len(){
-                0 => None,
-                1 => Some(Geometry{
-                    x:0,
-                    y:0,
+        match tiles.len() {
+            0 => None,
+            1 => {
+                Some(Geometry {
+                    x: 0,
+                    y: 0,
                     width: screen.width,
                     height: screen.height,
-                }),
-                2 => Some(Geometry{
+                })
+            }
+            2 => {
+                Some(Geometry {
                     x: width_part as i32,
-                    y:0,
+                    y: 0,
                     width: screen.width - width_part,
                     height: screen.height,
-                }),
-                3 => Some(Geometry{
+                })
+            }
+            3 => {
+                Some(Geometry {
                     x: width_part as i32,
-                    y:0,
+                    y: 0,
                     width: screen.width - 2 * width_part,
                     height: screen.height,
-                }),
-                _ => Some(Geometry{
+                })
+            }
+            _ => {
+                Some(Geometry {
                     x: width_part as i32,
-                    y:0,
+                    y: 0,
                     width: screen.width - 2 * width_part,
                     height: screen.height - height_part,
-                }),
+                })
+            }
         }
     }
 }
 
-fn neighbour_of(&index : &i32, dir: PrevOrNext) -> i32{
+fn neighbour_of(&index: &i32, dir: PrevOrNext) -> i32 {
     match dir {
         PrevOrNext::Prev => index - 1,
-        PrevOrNext::Next => index + 1
+        PrevOrNext::Next => index + 1,
     }
 }
 
@@ -308,9 +346,9 @@ mod vertical_layout_tests {
 
 
     #[test]
-    fn test_basic_dock_layout_no_window(){
+    fn test_basic_dock_layout_no_window() {
         // Initialize new BasicDockLayout strategy
-        let layout = BasicDockLayout{};
+        let layout = BasicDockLayout {};
         // Initialize empty tile Deque
         let tiles = VecDeque::new();
 
@@ -319,27 +357,28 @@ mod vertical_layout_tests {
     }
 
     #[test]
-    fn test_basic_dock_layout_one_window(){
+    fn test_basic_dock_layout_one_window() {
         // Initialize new BasicDockLayout strategy
-        let layout = BasicDockLayout{};
+        let layout = BasicDockLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push one window on the Deque
         tiles.push_back(1);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: SCREEN1.width,
-            height: SCREEN1.height,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: SCREEN1.width,
+                       height: SCREEN1.height,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
     }
 
     #[test]
-    fn test_basic_dock_layout_two_windows(){
+    fn test_basic_dock_layout_two_windows() {
         // Initialize new BasicDockLayout strategy
-        let layout = BasicDockLayout{};
+        let layout = BasicDockLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push 2 tiles on the Deque, the first one will be the master in this layout.
@@ -347,28 +386,30 @@ mod vertical_layout_tests {
         tiles.push_back(2);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 400,
-            height: 500,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 400,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 500,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
         // any other window should return an error
         assert!(layout.get_window_geometry(3, &SCREEN1, &tiles).is_err());
     }
 
     #[test]
-    fn test_basic_dock_layout_three_windows(){
+    fn test_basic_dock_layout_three_windows() {
         // Initialize new BasicDockLayout strategy
-        let layout = BasicDockLayout{};
+        let layout = BasicDockLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push 2 tiles on the Deque, the first one will be the master in this layout.
@@ -377,35 +418,38 @@ mod vertical_layout_tests {
         tiles.push_back(3);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 300,
-            height: 500,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 300,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 500,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 400,
-            y: 0,
-            width: 100,
-            height: 500,
-        },layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 400,
+                       y: 0,
+                       width: 100,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
 
         // any other window should return an error
         assert!(layout.get_window_geometry(4, &SCREEN1, &tiles).is_err());
     }
 
     #[test]
-    fn test_basic_dock_layout_four_windows(){
+    fn test_basic_dock_layout_four_windows() {
         // Initialize new BasicDockLayout strategy
-        let layout = BasicDockLayout{};
+        let layout = BasicDockLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push 2 tiles on the Deque, the first one will be the master in this layout.
@@ -415,33 +459,37 @@ mod vertical_layout_tests {
         tiles.push_back(4);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 300,
-            height: 400,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 300,
+                       height: 400,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 500,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 400,
-            y: 0,
-            width: 100,
-            height: 500,
-        },layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 400,
+                       y: 0,
+                       width: 100,
+                       height: 500,
+                   },
+                   layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 400,
-            width: 300,
-            height: 100,
-        },layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 400,
+                       width: 300,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
 
         // any other window should return an error
         assert!(layout.get_window_geometry(5, &SCREEN1, &tiles).is_err());
@@ -457,12 +505,12 @@ mod tests {
     use super::BasicDockLayout;
 
     #[test]
-    fn test_empty_tiling_wm(){
+    fn test_empty_tiling_wm() {
         window_manager::test_empty_wm::<TilingWM>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows(){
+    fn test_adding_and_removing_some_windows() {
         window_manager::test_adding_and_removing_windows::<TilingWM>();
     }
 
@@ -482,33 +530,33 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info(){
+    fn test_get_window_info() {
         window_manager::test_get_window_info::<TilingWM>();
     }
 
     #[test]
-    fn test_resize_screen(){
+    fn test_resize_screen() {
         window_manager::test_resize_screen::<TilingWM>();
     }
 
     #[test]
-    fn test_get_master_window(){
+    fn test_get_master_window() {
         tiling_support::test_master_tile::<TilingWM>();
     }
 
     #[test]
-    fn test_swap_with_master_window(){
+    fn test_swap_with_master_window() {
         tiling_support::test_swap_with_master::<TilingWM>();
     }
 
 
     #[test]
-    fn test_swap_windows(){
-        tiling_support::test_swap_windows::<TilingWM, BasicDockLayout>(BasicDockLayout{});
+    fn test_swap_windows() {
+        tiling_support::test_swap_windows::<TilingWM, BasicDockLayout>(BasicDockLayout {});
     }
 
     #[test]
-    fn test_tiling_layout(){
-        tiling_support::test_get_window_info::<TilingWM, BasicDockLayout>(BasicDockLayout{});
+    fn test_tiling_layout() {
+        tiling_support::test_get_window_info::<TilingWM, BasicDockLayout>(BasicDockLayout {});
     }
 }

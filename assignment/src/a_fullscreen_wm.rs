@@ -290,12 +290,12 @@ mod tests {
     use super::FullscreenWM;
 
     #[test]
-    fn test_empty_tiling_wm(){
+    fn test_empty_tiling_wm() {
         window_manager::test_empty_wm::<FullscreenWM>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows(){
+    fn test_adding_and_removing_some_windows() {
         window_manager::test_adding_and_removing_windows::<FullscreenWM>();
     }
 
@@ -315,12 +315,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info(){
+    fn test_get_window_info() {
         window_manager::test_get_window_info::<FullscreenWM>();
     }
 
     #[test]
-    fn test_resize_screen(){
+    fn test_resize_screen() {
         window_manager::test_resize_screen::<FullscreenWM>();
     }
 }

@@ -24,9 +24,9 @@
 
 // Add imports here
 use cplwm_api::types::{Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
-use cplwm_api::wm::{WindowManager, TilingSupport, FloatSupport, MinimiseSupport};
+use cplwm_api::wm::{FloatSupport, MinimiseSupport, TilingSupport, WindowManager};
 
-use wm_common::{Manager, LayoutManager, TilingTrait, FloatTrait, FloatAndTileTrait};
+use wm_common::{FloatAndTileTrait, FloatTrait, LayoutManager, Manager, TilingTrait};
 use wm_common::error::FloatWMError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::VerticalLayout;
@@ -39,7 +39,7 @@ pub type WMName = MinimiseWM;
 
 /// struct for MinimiseWM = {Focus + Minimize<TileOrFloat<Layout>>}
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct MinimiseWM{
+pub struct MinimiseWM {
     /// focus manager
     pub focus_manager: FocusManager,
     /// the layout manager
@@ -52,7 +52,8 @@ impl WindowManager for MinimiseWM {
     fn new(screen: Screen) -> MinimiseWM {
         MinimiseWM {
             focus_manager: FocusManager::new(),
-            minimise_manager: MinimiseManager::new(FloatOrTileManager::new(screen, VerticalLayout{})),
+            minimise_manager: MinimiseManager::new(FloatOrTileManager::new(screen,
+                                                                           VerticalLayout {})),
         }
     }
 
@@ -65,17 +66,16 @@ impl WindowManager for MinimiseWM {
     }
 
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
-        self.focus_manager.add_window(window_with_info)
+        self.focus_manager
+            .add_window(window_with_info)
             .map_err(|error| error.to_float_error())
-            .and_then(|_| {
-                self.minimise_manager.add_window(window_with_info)
-            })
+            .and_then(|_| self.minimise_manager.add_window(window_with_info))
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
         match self.focus_manager.remove_window(window) {
             Err(error) => Err(error.to_float_error()),
-            Ok(_) => self.minimise_manager.remove_window(window)
+            Ok(_) => self.minimise_manager.remove_window(window),
         }
     }
 
@@ -88,13 +88,15 @@ impl WindowManager for MinimiseWM {
 
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
         match window {
-            None => Ok(()),
-            Some(w) => self.minimise_manager.maximise_if_minimised(w, &mut self.focus_manager),
-        }.and_then(|_| {
-            self.focus_manager.focus_window(window)
-                .map_err(|error| error.to_float_error())
-                .and_then(|_| self.minimise_manager.focus_shifted(window))
-        })
+                None => Ok(()),
+                Some(w) => self.minimise_manager.maximise_if_minimised(w, &mut self.focus_manager),
+            }
+            .and_then(|_| {
+                self.focus_manager
+                    .focus_window(window)
+                    .map_err(|error| error.to_float_error())
+                    .and_then(|_| self.minimise_manager.focus_shifted(window))
+            })
     }
 
     fn cycle_focus(&mut self, dir: PrevOrNext) {
@@ -120,11 +122,11 @@ impl TilingSupport for MinimiseWM {
         self.minimise_manager.get_master_window()
     }
 
-    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error> {
         self.minimise_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
-    fn swap_windows(&mut self, dir: PrevOrNext){
+    fn swap_windows(&mut self, dir: PrevOrNext) {
         self.minimise_manager.swap_windows(dir, &self.focus_manager)
     }
 }
@@ -134,11 +136,14 @@ impl FloatSupport for MinimiseWM {
         self.minimise_manager.get_floating_windows()
     }
 
-    fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error> {
         self.minimise_manager.toggle_floating(window, &mut self.focus_manager)
     }
 
-    fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
+    fn set_window_geometry(&mut self,
+                           window: Window,
+                           new_geometry: Geometry)
+                           -> Result<(), Self::Error> {
         self.minimise_manager.set_window_geometry(window, new_geometry)
     }
 }
@@ -148,7 +153,7 @@ impl MinimiseSupport for MinimiseWM {
         self.minimise_manager.get_minimised_windows()
     }
 
-    fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error> {
         self.minimise_manager.toggle_minimised(window, &mut self.focus_manager)
     }
 }
@@ -156,14 +161,14 @@ impl MinimiseSupport for MinimiseWM {
 /// Manager to manage the minimised windows and wraps around a layout manager LayoutManager
 /// the minimise_assistant_manager is a helper to manage the minimised_windows
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct MinimiseManager<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> {
+pub struct MinimiseManager<LM: LayoutManager<Error = FloatWMError> + FloatAndTileTrait> {
     /// The wrapped layout manager
     pub layout_manager: LM,
     /// The helper for the minimised windows
     pub minimise_assistant_manager: MinimiseAssistantManager,
 }
 
-impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> Manager for MinimiseManager<LM> {
+impl<LM: LayoutManager<Error = FloatWMError> + FloatAndTileTrait> Manager for MinimiseManager<LM> {
     type Error = FloatWMError;
 
     fn get_windows(&self) -> Vec<Window> {
@@ -177,7 +182,8 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> Manager for Min
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
-        self.layout_manager.remove_window(window)
+        self.layout_manager
+            .remove_window(window)
             .or_else(|_| self.minimise_assistant_manager.remove_window(window))
     }
 }
@@ -215,25 +221,25 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> LayoutManager f
 }
 
 impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> TilingTrait for MinimiseManager<LM> {
-    /// get the master
+/// get the master
     fn get_master_window(&self) -> Option<Window>{
         self.layout_manager.get_master_window()
     }
-    /// swap with the master
+/// swap with the master
     fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), Self::Error>{
         self.maximise_if_minimised(window, focus_manager)
             .and_then(|_| {
                 self.layout_manager.swap_with_master(window, focus_manager)
             })
     }
-    /// swap windows
+/// swap windows
     fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
         self.layout_manager.swap_windows(dir, focus_manager)
     }
 }
 
 impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> FloatTrait for MinimiseManager<LM> {
-        /// change geometry of the floater
+/// change geometry of the floater
         fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
             self.layout_manager.set_window_geometry(window, new_geometry)
         }
@@ -243,11 +249,11 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> FloatAndTileTra
     fn get_floating_windows(&self) -> Vec<Window>{
         self.layout_manager.get_floating_windows()
     }
-    /// get all tiled windows
+/// get all tiled windows
     fn get_tiled_windows(&self) -> Vec<Window>{
         self.layout_manager.get_tiled_windows()
     }
-    /// toggle floating on window
+/// toggle floating on window
     fn toggle_floating(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), Self::Error>{
         self.maximise_if_minimised(window, focus_manager)
             .and_then(|_| self.layout_manager.toggle_floating(window, focus_manager))
@@ -255,8 +261,8 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> FloatAndTileTra
 }
 
 
-impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> MinimiseManager<LM> {
-    fn new(layout_manager: LM) -> MinimiseManager<LM>{
+impl<LM: LayoutManager<Error = FloatWMError> + FloatAndTileTrait> MinimiseManager<LM> {
+    fn new(layout_manager: LM) -> MinimiseManager<LM> {
         MinimiseManager {
             layout_manager: layout_manager,
             minimise_assistant_manager: MinimiseAssistantManager::new(),
@@ -267,7 +273,10 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> MinimiseManager
         self.minimise_assistant_manager.get_windows()
     }
 
-    fn maximise_if_minimised(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError> {
+    fn maximise_if_minimised(&mut self,
+                             window: Window,
+                             focus_manager: &mut FocusManager)
+                             -> Result<(), FloatWMError> {
         if self.minimise_assistant_manager.is_managed(window) {
             self.toggle_minimised(window, focus_manager)
         } else {
@@ -275,35 +284,48 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> MinimiseManager
         }
     }
 
-    fn toggle_minimised(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), FloatWMError>{
+    fn toggle_minimised(&mut self,
+                        window: Window,
+                        focus_manager: &mut FocusManager)
+                        -> Result<(), FloatWMError> {
         if self.minimise_assistant_manager.is_managed(window) {
             self.minimise_assistant_manager.get_window_info(window).and_then(|info| {
-                self.minimise_assistant_manager.remove_window(window)
-                    .and_then(|_| self.layout_manager.add_window(info)
-                        .and_then(|_| focus_manager.focus_window(Some(window))
-                            .map_err(|error| error.to_float_error())))
+                self.minimise_assistant_manager
+                    .remove_window(window)
+                    .and_then(|_| {
+                        self.layout_manager
+                            .add_window(info)
+                            .and_then(|_| {
+                                focus_manager.focus_window(Some(window))
+                                    .map_err(|error| error.to_float_error())
+                            })
+                    })
 
             })
         } else {
             self.layout_manager.get_window_info(window).and_then(|info| {
-                self.layout_manager.remove_window(window)
-                    .and_then(|_| self.minimise_assistant_manager.add_window(info)
-                        .and_then(|_| {
-                            match focus_manager.get_focused_window() {
-                                None => Ok(()),
-                                Some(w) => if window == w {
-                                    focus_manager.focus_window(None)
-                                        .map_err(|error| error.to_float_error())
-                                } else {
-                                    Ok(())
+                self.layout_manager
+                    .remove_window(window)
+                    .and_then(|_| {
+                        self.minimise_assistant_manager
+                            .add_window(info)
+                            .and_then(|_| {
+                                match focus_manager.get_focused_window() {
+                                    None => Ok(()),
+                                    Some(w) => {
+                                        if window == w {
+                                            focus_manager.focus_window(None)
+                                                .map_err(|error| error.to_float_error())
+                                        } else {
+                                            Ok(())
+                                        }
+                                    }
                                 }
-                            }
-                        }))
+                            })
+                    })
             })
         }
     }
-
-
 }
 
 
@@ -334,7 +356,9 @@ impl Manager for MinimiseAssistantManager {
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), FloatWMError> {
-        self.minis.iter().position(|w| w.window == window)
+        self.minis
+            .iter()
+            .position(|w| w.window == window)
             .ok_or(FloatWMError::UnknownWindow(window))
             .and_then(|index| {
                 self.minis.remove(index);
@@ -346,22 +370,22 @@ impl Manager for MinimiseAssistantManager {
 impl MinimiseAssistantManager {
     /// create empty MinimiseAssistantManager
     pub fn new() -> MinimiseAssistantManager {
-        MinimiseAssistantManager{
-            minis: Vec::new(),
-        }
+        MinimiseAssistantManager { minis: Vec::new() }
     }
 
     /// get specific window_info
     pub fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, FloatWMError> {
-        self.minis.iter().position(|w| w.window == window)
+        self.minis
+            .iter()
+            .position(|w| w.window == window)
             .ok_or(FloatWMError::UnknownWindow(window))
             .and_then(|index| {
-                self.minis.get(index)
+                self.minis
+                    .get(index)
                     .map(|w| *w)
                     .ok_or(FloatWMError::UnknownWindow(window))
             })
     }
-
 }
 
 
@@ -376,12 +400,12 @@ mod tests {
     use b_tiling_wm::VerticalLayout;
 
     #[test]
-    fn test_empty_tiling_wm(){
+    fn test_empty_tiling_wm() {
         window_manager::test_empty_wm::<MinimiseWM>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows(){
+    fn test_adding_and_removing_some_windows() {
         window_manager::test_adding_and_removing_windows::<MinimiseWM>();
     }
 
@@ -401,83 +425,83 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info(){
+    fn test_get_window_info() {
         window_manager::test_get_window_info::<MinimiseWM>();
     }
 
     #[test]
-    fn test_resize_screen(){
+    fn test_resize_screen() {
         window_manager::test_resize_screen::<MinimiseWM>();
     }
 
     #[test]
-    fn test_get_master_window(){
+    fn test_get_master_window() {
         tiling_support::test_master_tile::<MinimiseWM>();
     }
 
     #[test]
-    fn test_swap_with_master_window(){
+    fn test_swap_with_master_window() {
         tiling_support::test_swap_with_master::<MinimiseWM>();
     }
 
 
     #[test]
-    fn test_swap_windows(){
-        tiling_support::test_swap_windows::<MinimiseWM, VerticalLayout>(VerticalLayout{});
+    fn test_swap_windows() {
+        tiling_support::test_swap_windows::<MinimiseWM, VerticalLayout>(VerticalLayout {});
     }
 
     #[test]
-    fn test_tiling_layout(){
-        tiling_support::test_get_window_info::<MinimiseWM, VerticalLayout>(VerticalLayout{});
+    fn test_tiling_layout() {
+        tiling_support::test_get_window_info::<MinimiseWM, VerticalLayout>(VerticalLayout {});
     }
 
     #[test]
-    fn test_get_floating_windows(){
+    fn test_get_floating_windows() {
         float_support::test_get_floating_windows::<MinimiseWM>();
     }
 
     #[test]
-    fn test_toggle_floating(){
+    fn test_toggle_floating() {
         float_support::test_toggle_floating::<MinimiseWM>();
     }
 
     #[test]
-    fn test_set_window_geometry(){
+    fn test_set_window_geometry() {
         float_support::test_set_window_geometry::<MinimiseWM>();
     }
 
     #[test]
-    fn test_window_layout_order(){
+    fn test_window_layout_order() {
         float_support::test_window_layout_order::<MinimiseWM>();
     }
 
     #[test]
-    fn test_focus_floating_window_order(){
+    fn test_focus_floating_window_order() {
         float_support::test_focus_floating_window_order::<MinimiseWM>();
     }
 
     #[test]
-    fn test_swapping_master_with_floating_window_no_tiles(){
+    fn test_swapping_master_with_floating_window_no_tiles() {
         float_and_tile_support::test_swapping_master_with_floating_window_no_tiles::<MinimiseWM>();
     }
 
     #[test]
-    fn test_swapping_master_with_floating_window(){
+    fn test_swapping_master_with_floating_window() {
         float_and_tile_support::test_swapping_master_with_floating_window::<MinimiseWM>();
     }
 
     #[test]
-    fn test_swap_windows_on_floating(){
+    fn test_swap_windows_on_floating() {
         float_and_tile_support::test_swap_windows_on_floating::<MinimiseWM>();
     }
 
     #[test]
-    fn test_swap_windows_with_float_focused(){
+    fn test_swap_windows_with_float_focused() {
         float_and_tile_support::test_swap_windows_with_float_focused::<MinimiseWM>();
     }
 
     #[test]
-    fn test_toggle_floating_focus(){
+    fn test_toggle_floating_focus() {
         float_and_tile_support::test_toggle_floating_focus::<MinimiseWM>();
     }
 

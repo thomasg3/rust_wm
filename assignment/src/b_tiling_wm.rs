@@ -18,13 +18,14 @@
 //!
 
 // Add imports here
-use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
-use cplwm_api::wm::{WindowManager, TilingSupport};
+use cplwm_api::types::{FloatOrTile, Geometry, PrevOrNext, Screen, Window, WindowLayout,
+                       WindowWithInfo};
+use cplwm_api::wm::{TilingSupport, WindowManager};
 
-use wm_common::{TilingLayout, Manager, LayoutManager, TilingTrait};
+use wm_common::{LayoutManager, Manager, TilingLayout, TilingTrait};
 use wm_common::error::StandardError;
 use a_fullscreen_wm::FocusManager;
-use std::collections::{HashMap,VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 /// The public type.
 pub type WMName = TilingWM;
@@ -33,7 +34,7 @@ pub type WMName = TilingWM;
 /// The TilingWM as described in the assignment. Will implement the
 /// WindowManager and the TilingSupport
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
-pub struct TilingWM{
+pub struct TilingWM {
     /// The manager used to manage the current focus
     pub focus_manager: FocusManager,
     /// The managar used to manage the tiles
@@ -45,10 +46,10 @@ impl WindowManager for TilingWM {
     type Error = StandardError;
 
     /// constructor with given screen
-    fn new(screen: Screen) -> TilingWM  {
+    fn new(screen: Screen) -> TilingWM {
         TilingWM {
             focus_manager: FocusManager::new(),
-            tile_manager: TileManager::new(screen, VerticalLayout{}),
+            tile_manager: TileManager::new(screen, VerticalLayout {}),
         }
     }
 
@@ -60,15 +61,15 @@ impl WindowManager for TilingWM {
         self.focus_manager.get_focused_window()
     }
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
-        self.focus_manager.add_window(window_with_info).and_then(|_| {
-            self.tile_manager.add_window(window_with_info)
-        })
+        self.focus_manager
+            .add_window(window_with_info)
+            .and_then(|_| self.tile_manager.add_window(window_with_info))
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
-        self.focus_manager.remove_window(window).and_then(|_| {
-            self.tile_manager.remove_window(window)
-        })
+        self.focus_manager
+            .remove_window(window)
+            .and_then(|_| self.tile_manager.remove_window(window))
     }
 
     fn get_window_layout(&self) -> WindowLayout {
@@ -104,11 +105,11 @@ impl TilingSupport for TilingWM {
         self.tile_manager.get_master_window()
     }
 
-    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error> {
         self.tile_manager.swap_with_master(window, &mut self.focus_manager)
     }
 
-    fn swap_windows(&mut self, dir: PrevOrNext){
+    fn swap_windows(&mut self, dir: PrevOrNext) {
         self.tile_manager.swap_windows(dir, &self.focus_manager)
     }
 }
@@ -127,7 +128,9 @@ pub struct TileManager<TL: TilingLayout> {
     pub screen: Screen,
 }
 
-impl<TL> Manager for TileManager<TL> where TL : TilingLayout<Error=StandardError> {
+impl<TL> Manager for TileManager<TL>
+    where TL: TilingLayout<Error = StandardError>
+{
     type Error = StandardError;
 
     fn get_windows(&self) -> Vec<Window> {
@@ -156,7 +159,9 @@ impl<TL> Manager for TileManager<TL> where TL : TilingLayout<Error=StandardError
     }
 }
 
-impl<TL> LayoutManager for TileManager<TL> where TL : TilingLayout<Error=StandardError> {
+impl<TL> LayoutManager for TileManager<TL>
+    where TL: TilingLayout<Error = StandardError>
+{
     fn get_screen(&self) -> Screen {
         self.screen
     }
@@ -184,29 +189,32 @@ impl<TL> LayoutManager for TileManager<TL> where TL : TilingLayout<Error=Standar
         })
     }
 
-    fn focus_shifted(&mut self, _: Option<Window>) -> Result<(), Self::Error>{
+    fn focus_shifted(&mut self, _: Option<Window>) -> Result<(), Self::Error> {
         // When the focus shifts, this LayoutManager does not need to do anything
         Ok(())
     }
-
 }
 
-impl<TL> TilingTrait for TileManager<TL> where TL : TilingLayout<Error=StandardError> {
-
+impl<TL> TilingTrait for TileManager<TL>
+    where TL: TilingLayout<Error = StandardError>
+{
     /// Return current master window
     fn get_master_window(&self) -> Option<Window> {
         self.layout.get_master_window(&self.tiles)
     }
 
     /// Swap the window with the master and focus master through the given focus_manager
-    fn swap_with_master(&mut self, window: Window, focus_manager: &mut FocusManager) -> Result<(), StandardError>{
-        self.layout.swap_with_master(window, &mut self.tiles).and_then(|_| {
-            focus_manager.focus_window(Some(window))
-        })
+    fn swap_with_master(&mut self,
+                        window: Window,
+                        focus_manager: &mut FocusManager)
+                        -> Result<(), StandardError> {
+        self.layout
+            .swap_with_master(window, &mut self.tiles)
+            .and_then(|_| focus_manager.focus_window(Some(window)))
     }
 
     /// Swap currently focused window in the focus_manager with the next or previous tile
-    fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager){
+    fn swap_windows(&mut self, dir: PrevOrNext, focus_manager: &FocusManager) {
         focus_manager.get_focused_window().and_then(|window| {
             self.layout.swap_windows(window, dir, &mut self.tiles);
             Some(())
@@ -215,7 +223,9 @@ impl<TL> TilingTrait for TileManager<TL> where TL : TilingLayout<Error=StandardE
 }
 
 
-impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
+impl<TL> TileManager<TL>
+    where TL: TilingLayout<Error = StandardError>
+{
     /// A new, empty TileManager
     pub fn new(screen: Screen, layout: TL) -> TileManager<TL> {
         TileManager {
@@ -227,12 +237,14 @@ impl<TL> TileManager<TL> where TL : TilingLayout<Error=StandardError>{
     }
 
     /// Return the original WindowWithInfo of the given window
-    pub fn get_original_window_info(&self, window: Window) -> Result<WindowWithInfo, StandardError> {
+    pub fn get_original_window_info(&self,
+                                    window: Window)
+                                    -> Result<WindowWithInfo, StandardError> {
         self.originals.get(&window).map(|w| *w).ok_or(StandardError::UnknownWindow(window))
     }
 
     /// Return the current Geometry for the given window
-    pub fn get_window_geometry(&self, window: Window) -> Result<Geometry, StandardError>{
+    pub fn get_window_geometry(&self, window: Window) -> Result<Geometry, StandardError> {
         self.layout.get_window_geometry(window, &self.get_screen(), &self.tiles)
     }
 }
@@ -244,18 +256,21 @@ pub struct VerticalLayout {}
 impl TilingLayout for VerticalLayout {
     type Error = StandardError;
 
-    fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window>{
-        return tiles.front().map(|w| *w)
+    fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window> {
+        return tiles.front().map(|w| *w);
     }
 
-    fn swap_with_master(&self, window: Window, tiles: &mut VecDeque<Window>) -> Result<(), Self::Error>{
+    fn swap_with_master(&self,
+                        window: Window,
+                        tiles: &mut VecDeque<Window>)
+                        -> Result<(), Self::Error> {
         match self.get_master_window(tiles) {
             // There is no master window, so there are no windows, so the window argument can not be
             // known
             None => Err(StandardError::UnknownWindow(window)),
             Some(_) => {
                 // search position of the window arg
-                match tiles.iter().position(|w| *w == window){
+                match tiles.iter().position(|w| *w == window) {
                     // the window argument is not managed by this window manager
                     None => Err(StandardError::UnknownWindow(window)),
                     Some(index) => {
@@ -268,7 +283,7 @@ impl TilingLayout for VerticalLayout {
         }
     }
 
-    fn swap_windows(&self, window:Window, dir: PrevOrNext, tiles: &mut VecDeque<Window>){
+    fn swap_windows(&self, window: Window, dir: PrevOrNext, tiles: &mut VecDeque<Window>) {
         tiles.iter().position(|w| *w == window).and_then(|index| {
             let n = tiles.len() as i32;
             let neighbour = (neighbour_of(&(index as i32), dir) + n) % n;
@@ -278,22 +293,32 @@ impl TilingLayout for VerticalLayout {
     }
 
 
-    fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>{
+    fn get_window_geometry(&self,
+                           window: Window,
+                           screen: &Screen,
+                           tiles: &VecDeque<Window>)
+                           -> Result<Geometry, Self::Error> {
         let only_master = tiles.len() <= 1;
         let master_tile_width = screen.width / if only_master { 1 } else { 2 };
         match tiles.iter().position(|w| *w == window) {
             None => Err(StandardError::UnknownWindow(window)),
-            Some(0) => Ok(Geometry {
-                x: 0,
-                y: 0,
-                width: master_tile_width,
-                height: screen.height
-            }),
+            Some(0) => {
+                Ok(Geometry {
+                    x: 0,
+                    y: 0,
+                    width: master_tile_width,
+                    height: screen.height,
+                })
+            }
             Some(index) => {
                 // side tiles should get the remaining width of the screen.
                 let remaining_width = screen.width - master_tile_width;
                 let last_index = tiles.len() - 1;
-                let side_tile_height = if tiles.len() > 1 { screen.height / (tiles.len() - 1) as u32 } else { 0 };
+                let side_tile_height = if tiles.len() > 1 {
+                    screen.height / (tiles.len() - 1) as u32
+                } else {
+                    0
+                };
                 if index != last_index {
                     Ok(Geometry {
                         x: (screen.width / 2) as i32,
@@ -303,7 +328,10 @@ impl TilingLayout for VerticalLayout {
                     })
                 } else {
                     // the last side tile should get the remaining height of the screen.
-                    let remaining_height = (screen.height as i32 - side_tile_height as i32 * (last_index as i32 - 1) ) as u32;
+                    let remaining_height = (screen.height as i32 -
+                                            side_tile_height as i32 *
+                                            (last_index as i32 -
+                                             1)) as u32;
                     Ok(Geometry {
                         x: (screen.width / 2) as i32,
                         y: (index as i32 - 1) * side_tile_height as i32,
@@ -316,10 +344,10 @@ impl TilingLayout for VerticalLayout {
     }
 }
 
-fn neighbour_of(&index : &i32, dir: PrevOrNext) -> i32{
+fn neighbour_of(&index: &i32, dir: PrevOrNext) -> i32 {
     match dir {
         PrevOrNext::Prev => index - 1,
-        PrevOrNext::Next => index + 1
+        PrevOrNext::Next => index + 1,
     }
 }
 
@@ -341,9 +369,9 @@ mod vertical_layout_tests {
     };
 
     #[test]
-    fn test_vertical_layout_no_window(){
+    fn test_vertical_layout_no_window() {
         // Initialize new VerticalLayout strategy
-        let layout = VerticalLayout{};
+        let layout = VerticalLayout {};
         // Initialize empty tile Deque
         let tiles = VecDeque::new();
 
@@ -352,27 +380,28 @@ mod vertical_layout_tests {
     }
 
     #[test]
-    fn test_vertical_layout_one_window(){
+    fn test_vertical_layout_one_window() {
         // Initialize new VerticalLayout strategy
-        let layout = VerticalLayout{};
+        let layout = VerticalLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push one window on the Deque
         tiles.push_back(1);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: SCREEN1.width,
-            height: SCREEN1.height,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: SCREEN1.width,
+                       height: SCREEN1.height,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
     }
 
     #[test]
-    fn test_vertical_layout_two_windows(){
+    fn test_vertical_layout_two_windows() {
         // Initialize new VerticalLayout strategy
-        let layout = VerticalLayout{};
+        let layout = VerticalLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push 2 tiles on the Deque, the first one will be the master in this layout.
@@ -380,28 +409,30 @@ mod vertical_layout_tests {
         tiles.push_back(2);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 300,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 300,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 100,
-            height: 300,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 100,
+                       height: 300,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
         // any other window should return an error
         assert!(layout.get_window_geometry(3, &SCREEN1, &tiles).is_err());
     }
 
     #[test]
-    fn test_vertical_layout_multiple_windows_regular_screen(){
+    fn test_vertical_layout_multiple_windows_regular_screen() {
         // Initialize new VerticalLayout strategy
-        let layout = VerticalLayout{};
+        let layout = VerticalLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push 4 tiles on the Deque, the first one will be the master in this layout.
@@ -411,40 +442,44 @@ mod vertical_layout_tests {
         tiles.push_back(4);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 300,
-        },layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 100,
+                       height: 300,
+                   },
+                   layout.get_window_geometry(1, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 0,
-            width: 100,
-            height: 100,
-        },layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 0,
+                       width: 100,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(2, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 100,
-            width: 100,
-            height: 100,
-        },layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 100,
+                       width: 100,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(3, &SCREEN1, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 100,
-            y: 200,
-            width: 100,
-            height: 100,
-        },layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 100,
+                       y: 200,
+                       width: 100,
+                       height: 100,
+                   },
+                   layout.get_window_geometry(4, &SCREEN1, &tiles).ok().unwrap());
     }
 
     // test to see this layout handles tiles which should round the heights correctly
     #[test]
-    fn test_vertical_layout_multiple_windows_irregular_screen(){
+    fn test_vertical_layout_multiple_windows_irregular_screen() {
         // Initialize new VerticalLayout strategy
-        let layout = VerticalLayout{};
+        let layout = VerticalLayout {};
         // Initialize empty tile Deque
         let mut tiles = VecDeque::new();
         // Push 4 tiles on the Deque, the first one will be the master in this layout.
@@ -454,34 +489,38 @@ mod vertical_layout_tests {
         tiles.push_back(4);
 
         // compare to exptected geometry
-        assert_eq!(Geometry{
-            x: 0,
-            y: 0,
-            width: 150,
-            height: 401,
-        },layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 0,
+                       y: 0,
+                       width: 150,
+                       height: 401,
+                   },
+                   layout.get_window_geometry(1, &SCREEN2, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 150,
-            y: 0,
-            width: 151,
-            height: 133,
-        },layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 150,
+                       y: 0,
+                       width: 151,
+                       height: 133,
+                   },
+                   layout.get_window_geometry(2, &SCREEN2, &tiles).ok().unwrap());
 
-        assert_eq!(Geometry{
-            x: 150,
-            y: 133,
-            width: 151,
-            height: 133,
-        },layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 150,
+                       y: 133,
+                       width: 151,
+                       height: 133,
+                   },
+                   layout.get_window_geometry(3, &SCREEN2, &tiles).ok().unwrap());
 
         // last one should get remaining screen space.
-        assert_eq!(Geometry{
-            x: 150,
-            y: 266,
-            width: 151,
-            height: 135,
-        },layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
+        assert_eq!(Geometry {
+                       x: 150,
+                       y: 266,
+                       width: 151,
+                       height: 135,
+                   },
+                   layout.get_window_geometry(4, &SCREEN2, &tiles).ok().unwrap());
     }
 }
 
@@ -493,12 +532,12 @@ mod tests {
     use super::VerticalLayout;
 
     #[test]
-    fn test_empty_tiling_wm(){
+    fn test_empty_tiling_wm() {
         window_manager::test_empty_wm::<TilingWM>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows(){
+    fn test_adding_and_removing_some_windows() {
         window_manager::test_adding_and_removing_windows::<TilingWM>();
     }
 
@@ -518,33 +557,33 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info(){
+    fn test_get_window_info() {
         window_manager::test_get_window_info::<TilingWM>();
     }
 
     #[test]
-    fn test_resize_screen(){
+    fn test_resize_screen() {
         window_manager::test_resize_screen::<TilingWM>();
     }
 
     #[test]
-    fn test_get_master_window(){
+    fn test_get_master_window() {
         tiling_support::test_master_tile::<TilingWM>();
     }
 
     #[test]
-    fn test_swap_with_master_window(){
+    fn test_swap_with_master_window() {
         tiling_support::test_swap_with_master::<TilingWM>();
     }
 
 
     #[test]
-    fn test_swap_windows(){
-        tiling_support::test_swap_windows::<TilingWM, VerticalLayout>(VerticalLayout{});
+    fn test_swap_windows() {
+        tiling_support::test_swap_windows::<TilingWM, VerticalLayout>(VerticalLayout {});
     }
 
     #[test]
-    fn test_tiling_layout(){
-        tiling_support::test_get_window_info::<TilingWM, VerticalLayout>(VerticalLayout{});
+    fn test_tiling_layout() {
+        tiling_support::test_get_window_info::<TilingWM, VerticalLayout>(VerticalLayout {});
     }
 }

@@ -45,7 +45,7 @@ pub struct MultiWorkspaces<WM: WindowManager> {
 }
 
 impl<WM: WindowManager> MultiWorkspaces<WM> {
-    fn get_current_workspace(&self) -> Result<&WM, MultiWorkspaceError>{
+    fn get_current_workspace(&self) -> Result<&WM, MultiWorkspaceError> {
         self.get_workspace(self.get_current_workspace_index())
     }
 
@@ -58,7 +58,7 @@ impl<WM: WindowManager> MultiWorkspaces<WM> {
 impl<WM: WindowManager> WindowManager for MultiWorkspaces<WM> {
     type Error = MultiWorkspaceError;
 
-    fn new(screen: Screen) -> Self{
+    fn new(screen: Screen) -> Self {
         MultiWorkspaces {
             workspaces: vec![WM::new(screen)],
             current_workspace: 0,
@@ -78,45 +78,54 @@ impl<WM: WindowManager> WindowManager for MultiWorkspaces<WM> {
             .unwrap_or(Vec::new())
     }
 
-    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error>{
+    fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.add_window(window_with_info)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.add_window(window_with_info)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.remove_window(window)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.remove_window(window)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 
-    fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error>{
+    fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.focus_window(window)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.focus_window(window)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 
-    fn cycle_focus(&mut self, dir: PrevOrNext){
+    fn cycle_focus(&mut self, dir: PrevOrNext) {
         match self.get_current_workspace_mut() {
-            Err(_) => {},
+            Err(_) => {}
             Ok(wm) => wm.cycle_focus(dir),
         }
     }
 
-    fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error>{
+    fn get_window_info(&self, window: Window) -> Result<WindowWithInfo, Self::Error> {
         self.get_current_workspace()
-            .and_then(|wm| wm.get_window_info(window)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.get_window_info(window)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 
-    fn get_screen(&self) -> Screen{
+    fn get_screen(&self) -> Screen {
         self.screen
     }
 
-    fn resize_screen(&mut self, screen: Screen){
+    fn resize_screen(&mut self, screen: Screen) {
         self.screen = screen;
         for index in 0..self.workspaces.len() {
-            self.workspaces.get_mut(index)
+            self.workspaces
+                .get_mut(index)
                 .and_then(|w| {
                     w.resize_screen(screen);
                     Some(())
@@ -130,19 +139,19 @@ impl<WM: WindowManager> MultiWorkspaceSupport<WM> for MultiWorkspaces<WM> {
         self.current_workspace
     }
 
-    fn get_workspace(&self, index: WorkspaceIndex) -> Result<&WM, Self::Error>{
+    fn get_workspace(&self, index: WorkspaceIndex) -> Result<&WM, Self::Error> {
         self.workspaces.get(index).ok_or(MultiWorkspaceError::WorkspaceIndexOutOfBound(index))
     }
 
-    fn get_workspace_mut(&mut self, index: WorkspaceIndex) -> Result<&mut WM, Self::Error>{
+    fn get_workspace_mut(&mut self, index: WorkspaceIndex) -> Result<&mut WM, Self::Error> {
         self.workspaces.get_mut(index).ok_or(MultiWorkspaceError::WorkspaceIndexOutOfBound(index))
     }
 
-    fn switch_workspace(&mut self, index: WorkspaceIndex) -> Result<(), Self::Error>{
-        if index < self.workspaces.len(){
+    fn switch_workspace(&mut self, index: WorkspaceIndex) -> Result<(), Self::Error> {
+        if index < self.workspaces.len() {
             self.current_workspace = index;
             Ok(())
-        } else if index == self.workspaces.len(){
+        } else if index == self.workspaces.len() {
             self.workspaces.push(WM::new(self.screen));
             self.current_workspace = index;
             Ok(())
@@ -161,14 +170,21 @@ impl<WM: FloatSupport> FloatSupport for MultiWorkspaces<WM> {
 
     fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.toggle_floating(window)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.toggle_floating(window)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 
-    fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
+    fn set_window_geometry(&mut self,
+                           window: Window,
+                           new_geometry: Geometry)
+                           -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.set_window_geometry(window, new_geometry)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.set_window_geometry(window, new_geometry)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 }
 
@@ -179,30 +195,34 @@ impl<WM: MinimiseSupport> MinimiseSupport for MultiWorkspaces<WM> {
             .unwrap_or(Vec::new())
     }
 
-    fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.toggle_minimised(window)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.toggle_minimised(window)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 }
 
 impl<WM: TilingSupport> TilingSupport for MultiWorkspaces<WM> {
-    fn get_master_window(&self) -> Option<Window>{
+    fn get_master_window(&self) -> Option<Window> {
         match self.get_current_workspace() {
             Err(_) => None,
             Ok(wm) => wm.get_master_window(),
         }
     }
 
-    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error>{
+    fn swap_with_master(&mut self, window: Window) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
-            .and_then(|wm| wm.swap_with_master(window)
-                .map_err(|_| MultiWorkspaceError::WrappedError))
+            .and_then(|wm| {
+                wm.swap_with_master(window)
+                    .map_err(|_| MultiWorkspaceError::WrappedError)
+            })
     }
 
-    fn swap_windows(&mut self, dir: PrevOrNext){
+    fn swap_windows(&mut self, dir: PrevOrNext) {
         match self.get_current_workspace_mut() {
-            Err(_) => {},
+            Err(_) => {}
             Ok(wm) => wm.swap_windows(dir),
         }
     }
@@ -221,12 +241,12 @@ mod tests {
     use b_tiling_wm::VerticalLayout;
 
     #[test]
-    fn test_empty_tiling_wm(){
+    fn test_empty_tiling_wm() {
         window_manager::test_empty_wm::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows(){
+    fn test_adding_and_removing_some_windows() {
         window_manager::test_adding_and_removing_windows::<MultiWorkspaces<MinimiseWM>>();
     }
 
@@ -246,83 +266,85 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info(){
+    fn test_get_window_info() {
         window_manager::test_get_window_info::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_resize_screen(){
+    fn test_resize_screen() {
         window_manager::test_resize_screen::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_get_master_window(){
+    fn test_get_master_window() {
         tiling_support::test_master_tile::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_swap_with_master_window(){
+    fn test_swap_with_master_window() {
         tiling_support::test_swap_with_master::<MultiWorkspaces<MinimiseWM>>();
     }
 
 
     #[test]
-    fn test_swap_windows(){
-        tiling_support::test_swap_windows::<MultiWorkspaces<MinimiseWM>, VerticalLayout>(VerticalLayout{});
+    fn test_swap_windows() {
+        tiling_support::test_swap_windows::<MultiWorkspaces<MinimiseWM>,
+                                            VerticalLayout>(VerticalLayout {});
     }
 
     #[test]
-    fn test_tiling_layout(){
-        tiling_support::test_get_window_info::<MultiWorkspaces<MinimiseWM>, VerticalLayout>(VerticalLayout{});
+    fn test_tiling_layout() {
+        tiling_support::test_get_window_info::<MultiWorkspaces<MinimiseWM>,
+                                               VerticalLayout>(VerticalLayout {});
     }
 
     #[test]
-    fn test_get_floating_windows(){
+    fn test_get_floating_windows() {
         float_support::test_get_floating_windows::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_toggle_floating(){
+    fn test_toggle_floating() {
         float_support::test_toggle_floating::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_set_window_geometry(){
+    fn test_set_window_geometry() {
         float_support::test_set_window_geometry::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_window_layout_order(){
+    fn test_window_layout_order() {
         float_support::test_window_layout_order::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_focus_floating_window_order(){
+    fn test_focus_floating_window_order() {
         float_support::test_focus_floating_window_order::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_swapping_master_with_floating_window_no_tiles(){
+    fn test_swapping_master_with_floating_window_no_tiles() {
         float_and_tile_support::test_swapping_master_with_floating_window_no_tiles::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_swapping_master_with_floating_window(){
+    fn test_swapping_master_with_floating_window() {
         float_and_tile_support::test_swapping_master_with_floating_window::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_swap_windows_on_floating(){
+    fn test_swap_windows_on_floating() {
         float_and_tile_support::test_swap_windows_on_floating::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_swap_windows_with_float_focused(){
+    fn test_swap_windows_with_float_focused() {
         float_and_tile_support::test_swap_windows_with_float_focused::<MultiWorkspaces<MinimiseWM>>();
     }
 
     #[test]
-    fn test_toggle_floating_focus(){
+    fn test_toggle_floating_focus() {
         float_and_tile_support::test_toggle_floating_focus::<MultiWorkspaces<MinimiseWM>>();
     }
 
