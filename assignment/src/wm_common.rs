@@ -180,6 +180,44 @@ pub mod error {
         }
     }
 
+
+    /// A error for specific MultiWorkspaceErrors
+    #[derive(Debug)]
+    pub enum MultiWorkspaceError {
+        /// Wraps another error
+        WrappedError,
+        /// There is no workspace in this MultiWorkspaceWM, this should not happen
+        NoWorkspaces,
+        /// The requested WorkspaceIndex is out of bound
+        WorkspaceIndexOutOfBound(WorkspaceIndex),
+    }
+
+    // This code is explained in the documentation of the associated [Error] type
+    // of the `WindowManager` trait.
+    impl fmt::Display for MultiWorkspaceError {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                MultiWorkspaceError::WrappedError => write!(f, "Wrapped error occured!"),
+                MultiWorkspaceError::NoWorkspaces => write!(f, "No workspaces in this MultiWorkspaceWM!"),
+                MultiWorkspaceError::WorkspaceIndexOutOfBound(index)
+                    => write!(f, "Index is out of bound {}", index),
+
+            }
+        }
+    }
+
+    // This code is explained in the documentation of the associated [Error] type
+    // of the `WindowManager` trait.
+    impl error::Error for MultiWorkspaceError {
+        fn description(&self) -> &'static str {
+            match *self {
+                MultiWorkspaceError::WrappedError => "Wrapped error",
+                MultiWorkspaceError::NoWorkspaces => "NoWorkspaces",
+                MultiWorkspaceError::WorkspaceIndexOutOfBound(_) => "WorkspaceIndexOutOfBound",
+            }
+        }
+    }
+
 }
 
 
