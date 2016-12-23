@@ -18,13 +18,7 @@
 //!
 //! # Status
 //!
-//! **TODO**: Replace the question mark below with YES, NO, or PARTIAL to
-//! indicate the status of this assignment. If you want to tell something
-//! about this assignment to the grader, e.g., you have a bug you can't fix,
-//! or you want to explain your approach, write it down after the comments
-//! section.
-//!
-//! COMPLETED: ?
+//! COMPLETED: YES
 //!
 //! COMMENTS:
 //!
@@ -44,7 +38,7 @@ use b_tiling_wm::{TileManager, VerticalLayout};
 pub type WMName = FloatWM;
 
 /// FloatWM as described in the assignment. Will implement WindowManager, TilingSupport
-/// and FloatSupport
+/// and FloatSupport. FloatWM is the combination of a FocusManager and FloatOrTileManager
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct FloatWM{
     /// The Manager for the current focus

@@ -17,17 +17,11 @@
 //!
 //! # Status
 //!
-//! **TODO**: Replace the question mark below with YES, NO, or PARTIAL to
-//! indicate the status of this assignment. If you want to tell something
-//! about this assignment to the grader, e.g., you have a bug you can't fix,
-//! or you want to explain your approach, write it down after the comments
-//! section.
-//!
-//! COMPLETED: ?
+//! COMPLETED: PARTIAL
 //!
 //! COMMENTS:
-//!
-//! ...
+//! This manager only delegates everything on the the currently selected Wordspace. So certain
+//! invariants do not hold at the moment.
 //!
 
 // Add imports here
@@ -42,13 +36,15 @@ pub type WMName = MultiWorkspaces<MinimiseWM>;
 /// MultiWorkspaces
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MultiWorkspaces<WM: WindowManager> {
-    workspaces: Vec<WM>,
-    current_workspace: WorkspaceIndex,
-    screen: Screen,
+    /// all the workspaces
+    pub workspaces: Vec<WM>,
+    /// index of the current workspace in the workspaces vector
+    pub current_workspace: WorkspaceIndex,
+    /// the current screen size
+    pub screen: Screen,
 }
 
 impl<WM: WindowManager> MultiWorkspaces<WM> {
-
     fn get_current_workspace(&self) -> Result<&WM, MultiWorkspaceError>{
         self.get_workspace(self.get_current_workspace_index())
     }
@@ -93,6 +89,7 @@ impl<WM: WindowManager> WindowManager for MultiWorkspaces<WM> {
             .and_then(|wm| wm.remove_window(window)
                 .map_err(|_| MultiWorkspaceError::WrappedError))
     }
+
     fn focus_window(&mut self, window: Option<Window>) -> Result<(), Self::Error>{
         self.get_current_workspace_mut()
             .and_then(|wm| wm.focus_window(window)
@@ -132,12 +129,15 @@ impl<WM: WindowManager> MultiWorkspaceSupport<WM> for MultiWorkspaces<WM> {
     fn get_current_workspace_index(&self) -> WorkspaceIndex {
         self.current_workspace
     }
+
     fn get_workspace(&self, index: WorkspaceIndex) -> Result<&WM, Self::Error>{
         self.workspaces.get(index).ok_or(MultiWorkspaceError::WorkspaceIndexOutOfBound(index))
     }
+
     fn get_workspace_mut(&mut self, index: WorkspaceIndex) -> Result<&mut WM, Self::Error>{
         self.workspaces.get_mut(index).ok_or(MultiWorkspaceError::WorkspaceIndexOutOfBound(index))
     }
+
     fn switch_workspace(&mut self, index: WorkspaceIndex) -> Result<(), Self::Error>{
         if index < self.workspaces.len(){
             self.current_workspace = index;
@@ -152,18 +152,19 @@ impl<WM: WindowManager> MultiWorkspaceSupport<WM> for MultiWorkspaces<WM> {
     }
 }
 
-
 impl<WM: FloatSupport> FloatSupport for MultiWorkspaces<WM> {
     fn get_floating_windows(&self) -> Vec<Window> {
         self.get_current_workspace()
             .and_then(|wm| Ok(wm.get_floating_windows()))
             .unwrap_or(Vec::new())
     }
+
     fn toggle_floating(&mut self, window: Window) -> Result<(), Self::Error> {
         self.get_current_workspace_mut()
             .and_then(|wm| wm.toggle_floating(window)
                 .map_err(|_| MultiWorkspaceError::WrappedError))
     }
+
     fn set_window_geometry(&mut self, window: Window, new_geometry: Geometry) -> Result<(), Self::Error>{
         self.get_current_workspace_mut()
             .and_then(|wm| wm.set_window_geometry(window, new_geometry)
@@ -171,19 +172,13 @@ impl<WM: FloatSupport> FloatSupport for MultiWorkspaces<WM> {
     }
 }
 
-/*
-impl<WM: FullscreenSupport> FullscreenSupport for MultiWorkspaces<WM> {
-    fn get_fullscreen_window(&self) -> Option<Window>;
-    fn toggle_fullscreen(&mut self, window: Window) -> Result<(), Self::Error>;
-}
-*/
-
 impl<WM: MinimiseSupport> MinimiseSupport for MultiWorkspaces<WM> {
     fn get_minimised_windows(&self) -> Vec<Window> {
         self.get_current_workspace()
             .and_then(|wm| Ok(wm.get_minimised_windows()))
             .unwrap_or(Vec::new())
     }
+
     fn toggle_minimised(&mut self, window: Window) -> Result<(), Self::Error>{
         self.get_current_workspace_mut()
             .and_then(|wm| wm.toggle_minimised(window)
@@ -204,6 +199,7 @@ impl<WM: TilingSupport> TilingSupport for MultiWorkspaces<WM> {
             .and_then(|wm| wm.swap_with_master(window)
                 .map_err(|_| MultiWorkspaceError::WrappedError))
     }
+
     fn swap_windows(&mut self, dir: PrevOrNext){
         match self.get_current_workspace_mut() {
             Err(_) => {},

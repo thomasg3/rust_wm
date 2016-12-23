@@ -14,47 +14,22 @@
 //!
 //! # Status
 //!
-//! **TODO**: Replace the question mark below with YES, NO, or PARTIAL to
-//! indicate the status of this assignment. If you want to tell something
-//! about this assignment to the grader, e.g., you have a bug you can't fix,
-//! or you want to explain your approach, write it down after the comments
-//! section.
-//!
 //! COMPLETED: YES
 //!
 //! COMMENTS: /
 //!
 
-// Import some other used types.
 use std::collections::{BTreeMap, VecDeque};
-
-// Import some types and the WindowManager trait from the cplwm_api crate
-// (defined in the api folder).
 use cplwm_api::types::{FloatOrTile, PrevOrNext, Screen, Window, WindowLayout, WindowWithInfo};
 use cplwm_api::wm::WindowManager;
 use wm_common::Manager;
 use wm_common::error::StandardError;
 
-/// You are free to choose the name for your window manager. As we will use
-/// automated tests when grading your assignment, indicate here the name of
-/// your window manager data type so we can just use `WMName` instead of
-/// having to manually figure out your window manager name.
+/// public type
 pub type WMName = FullscreenWM;
 
 
-/// The FullscreenWM struct
-///
-/// # Example Representation
-///
-/// The fullscreen window manager that we are implementing is very simple: it
-/// just needs to keep track of all the windows that were added and remember
-/// which one is focused. It is not even necessary to remember the geometries
-/// of the windows, as they will all be resized to the size of the screen.
-///
-/// To understand the `#derive[(..)]` line before the struct, read the
-/// [Supertraits] section of the `WindowManager` trait.
-///
-/// [Supertraits]: ../../cplwm_api/wm/trait.WindowManager.html#supertraits
+/// FullscreenWM, only keeps track of focus through focus_manager
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct FullscreenWM {
     /// The FocusManager which manages the current focus and keeps al the windows

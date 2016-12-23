@@ -13,15 +13,25 @@ pub trait TilingLayout: Encodable + Decodable + Debug + Clone  {
     /// The type of error associated with this TilingLayout
     type Error;
 
-    /// get the master window from the provided Deque of tiles.
+    /// Returns the master window from the given tiles VecDeque if there is any.
     fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window>;
-    /// swap the given window with the current window in the master tile.
-    /// should return an error when the window is not in the given tiles Deque.
+    /// Swap the given window with the current window in the master tile.
+    /// Should return an error when the window is not in the given tiles VecDeque.
     fn swap_with_master(&self, window: Window, tiles: &mut VecDeque<Window>) -> Result<(), Self::Error>;
-    /// swaps the given window with the next or previous window according to this TilingLayout
+    /// Swaps the given window with the next or previous window according to this TilingLayout.
+    /// Does nothing when the given window is not in the given tiles.
     fn swap_windows(&self, window:Window, dir:PrevOrNext, tiles: &mut VecDeque<Window>);
-    /// get the geometry of a window in this layout from the provided Deque of tiles.
+    /// Get the geometry of a window in this layout from the provided VecDeque of tiles.
+    /// Returns an error if the given window is not in the given tiles.
     fn get_window_geometry(&self, window: Window, screen: &Screen, tiles: &VecDeque<Window>) -> Result<Geometry, Self::Error>;
+}
+
+/// Trait describing what a layoutmanager with gap support could do
+pub trait GapTrait : TilingLayout {
+    /// get the current gap
+    fn get_gap(&self) -> GapSize;
+    /// set the current gap
+    fn set_gap(&mut self, gap: GapSize);
 }
 
 /// Trait which all Managers should have. A Manager is a component of a WindowManager with a
@@ -185,7 +195,7 @@ pub mod error {
     /// A error for specific MultiWorkspaceErrors
     #[derive(Debug)]
     pub enum MultiWorkspaceError {
-        /// Wraps another error
+        /// Wraps another error, or should wrap it, this is not entirely implemented
         WrappedError,
         /// There is no workspace in this MultiWorkspaceWM, this should not happen
         NoWorkspaces,
@@ -758,6 +768,61 @@ pub mod tests {
 
         }
 
+    }
+
+    /// Module for testing GapSupport
+    pub mod gap_support {
+        use std::collections::VecDeque;
+        use cplwm_api::types::*;
+        use cplwm_api::wm::GapSupport;
+        use super::super::GapTrait;
+
+
+        static SCREEN: Screen = Screen {
+            width: 800,
+            height: 600,
+        };
+
+        // A random, unimportant Geometry
+        static SOME_GEOM: Geometry = Geometry {
+            x: 10,
+            y: 10,
+            width: 100,
+            height: 100,
+        };
+
+        /// test for changing the gap has the right effect
+        pub fn test_set_gap<G: GapSupport, L: GapTrait>(mut layout: L) {
+            let mut wm = G::new(SCREEN);
+            assert!(wm.add_window(WindowWithInfo::new_tiled(1, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(2, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(3, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(4, SOME_GEOM)).is_ok());
+            assert!(wm.add_window(WindowWithInfo::new_tiled(5, SOME_GEOM)).is_ok());
+
+            let mut tiles = VecDeque::<Window>::new();
+            tiles.push_back(1);
+            tiles.push_back(2);
+            tiles.push_back(3);
+            tiles.push_back(4);
+            tiles.push_back(5);
+
+            for tile in &tiles {
+                let expected_layout = layout.get_window_geometry(*tile, &wm.get_screen(), &tiles).ok().unwrap();
+                let actual_layout = wm.get_window_info(*tile).unwrap().geometry;
+                assert_eq!(expected_layout, actual_layout);
+            }
+
+            wm.set_gap(5);
+            layout.set_gap(5);
+
+            for tile in &tiles {
+                let expected_layout = layout.get_window_geometry(*tile, &wm.get_screen(), &tiles).ok().unwrap();
+                let actual_layout = wm.get_window_info(*tile).unwrap().geometry;
+                assert_eq!(expected_layout, actual_layout);
+            }
+
+        }
     }
 
 

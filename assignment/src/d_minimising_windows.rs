@@ -15,17 +15,11 @@
 //!
 //! # Status
 //!
-//! **TODO**: Replace the question mark below with YES, NO, or PARTIAL to
-//! indicate the status of this assignment. If you want to tell something
-//! about this assignment to the grader, e.g., you have a bug you can't fix,
-//! or you want to explain your approach, write it down after the comments
-//! section.
 //!
-//! COMPLETED: ?
+//! COMPLETED: YES
 //!
 //! COMMENTS:
 //!
-//! ...
 //!
 
 // Add imports here
@@ -43,7 +37,7 @@ use c_floating_windows::FloatOrTileManager;
 /// the public type
 pub type WMName = MinimiseWM;
 
-/// struct for MinimiseWM = {Focus + TileOrFloat + Minimize}
+/// struct for MinimiseWM = {Focus + Minimize<TileOrFloat<Layout>>}
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MinimiseWM{
     /// focus manager
@@ -159,7 +153,8 @@ impl MinimiseSupport for MinimiseWM {
     }
 }
 
-/// Manager to manage the minimised windows and a LayoutManager
+/// Manager to manage the minimised windows and wraps around a layout manager LayoutManager
+/// the minimise_assistant_manager is a helper to manage the minimised_windows
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MinimiseManager<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> {
     /// The wrapped layout manager
@@ -317,7 +312,8 @@ impl<LM : LayoutManager<Error=FloatWMError> + FloatAndTileTrait> MinimiseManager
 /// Manager to manage the minimised windows
 #[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
 pub struct MinimiseAssistantManager {
-    /// Map to keep the window and it's last info
+    /// Vec to keep the window and it's last info and keep the order of coming in.
+    /// The firstly added window is first in the vec
     pub minis: Vec<WindowWithInfo>,
 }
 

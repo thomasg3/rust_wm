@@ -12,12 +12,6 @@
 //!
 //! # Status
 //!
-//! **TODO**: Replace the question mark below with YES, NO, or PARTIAL to
-//! indicate the status of this assignment. If you want to tell something
-//! about this assignment to the grader, e.g., you have a bug you can't fix,
-//! or you want to explain your approach, write it down after the comments
-//! section.
-//!
 //! COMPLETED: YES
 //!
 //! COMMENTS: /
@@ -28,7 +22,7 @@ use std::cmp;
 use std::collections::VecDeque;
 use cplwm_api::types::{Window, PrevOrNext, Screen, Geometry, GapSize, WindowWithInfo, WindowLayout};
 use cplwm_api::wm::{WindowManager, TilingSupport, GapSupport};
-use wm_common::{Manager, LayoutManager, TilingTrait, TilingLayout};
+use wm_common::{Manager, LayoutManager, TilingTrait, TilingLayout, GapTrait};
 use wm_common::error::StandardError;
 use a_fullscreen_wm::FocusManager;
 use b_tiling_wm::{TileManager, VerticalLayout};
@@ -153,14 +147,6 @@ pub struct GapLayout<T: TilingLayout> {
     pub tiling_layout: T,
 }
 
-/// Trait describing what a manager with gap support could do
-pub trait GapTrait : TilingLayout {
-    /// get the current gap
-    fn get_gap(&self) -> GapSize;
-    /// set the current gap
-    fn set_gap(&mut self, gap: GapSize);
-}
-
 impl<T: TilingLayout> GapTrait for GapLayout<T> {
     fn get_gap(&self) -> GapSize {
         self.gap
@@ -172,6 +158,7 @@ impl<T: TilingLayout> GapTrait for GapLayout<T> {
 }
 
 impl<T: TilingLayout> TilingLayout for GapLayout<T> {
+    // use the same type for Error as the wrapped layout
     type Error = T::Error;
 
     fn get_master_window(&self, tiles: &VecDeque<Window>) -> Option<Window>{
@@ -524,6 +511,7 @@ mod vertical_layout_tests {
 mod tests {
     use wm_common::tests::window_manager;
     use wm_common::tests::tiling_support;
+    use wm_common::tests::gap_support;
     use super::TilingWM;
     use super::GapLayout;
     use b_tiling_wm::VerticalLayout;
@@ -590,5 +578,14 @@ mod tests {
             gap: 0
         };
         tiling_support::test_get_window_info::<TilingWM, GapLayout<VerticalLayout>>(layout);
+    }
+
+    #[test]
+    fn test_set_gap(){
+        let layout: GapLayout<VerticalLayout> = GapLayout {
+            tiling_layout: VerticalLayout{},
+            gap: 0
+        };
+        gap_support::test_set_gap::<TilingWM, GapLayout<VerticalLayout>>(layout);
     }
 }
