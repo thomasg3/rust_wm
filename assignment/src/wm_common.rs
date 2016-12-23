@@ -893,7 +893,7 @@ pub mod tests {
 
             assert!(wm.add_window(window_b).is_ok());
             assert!(wm.is_managed(2));
-            // TODO: returned windows should be sorted because the order does not have to be gaurenteed.
+
             assert_eq!(vec![1, 2], wm.get_windows());
             assert_eq!(Some(2), wm.get_focused_window());
 

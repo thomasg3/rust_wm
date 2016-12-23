@@ -40,14 +40,10 @@ pub struct FullscreenWM {
     pub window_to_info: BTreeMap<Window, WindowWithInfo>,
 }
 
-// Now we start implementing our window manager
 impl WindowManager for FullscreenWM {
     /// We use `StandardError` as our `Error` type.
     type Error = StandardError;
 
-    /// The constructor is straightforward.
-    ///
-    /// Track the given screen, no window is initially focused, and add empty Deque and TreeMap
     fn new(screen: Screen) -> FullscreenWM {
         FullscreenWM {
             focus_manager: FocusManager::new(),
@@ -56,7 +52,6 @@ impl WindowManager for FullscreenWM {
         }
     }
 
-    /// The `windows` field contains all the windows we manage.
     fn get_windows(&self) -> Vec<Window> {
         self.focus_manager.get_windows()
     }
@@ -66,10 +61,6 @@ impl WindowManager for FullscreenWM {
         self.focus_manager.get_focused_window()
     }
 
-    /// Add a new window. Focus on the window and push the previous window at the back of the Deque,
-    /// it there is one. Add the given WindowWithInfo to the window_to_info BTreeMap for future use.
-    /// Returns an AlReadyManagedWindow error when the given window is already managed by this
-    /// window manager.
     fn add_window(&mut self, window_with_info: WindowWithInfo) -> Result<(), Self::Error> {
         self.focus_manager.add_window(window_with_info).and_then(|_| {
             self.window_to_info.insert(window_with_info.window, window_with_info);
@@ -77,10 +68,6 @@ impl WindowManager for FullscreenWM {
         })
     }
 
-    /// Remove a window. If the window is focused, simple focus the previous window. Otherwise
-    /// / remove the window from the Deque. Remove any additional information of the window in the
-    /// BTreeMap. Returns an UnknowWindow error when the given window is not managed by this
-    /// window manager
     fn remove_window(&mut self, window: Window) -> Result<(), Self::Error> {
         self.focus_manager.remove_window(window).and_then(|_| {
             self.window_to_info.remove(&window);
@@ -88,22 +75,6 @@ impl WindowManager for FullscreenWM {
         })
     }
 
-    /// Now the most important part: calculating the `WindowLayout`.
-    ///
-    /// First we build a `Geometry` for a fullscreen window using the
-    /// `to_geometry` method: it has the same width and height as the screen.
-    ///
-    /// Then we look at the focused_window
-    ///
-    /// * When the `Option` contains `Some(w)`, we know that there was at
-    ///   least one window, and `w`, being the last window in the `Vec` should
-    ///   be focused. As the other windows will not be visible, the `windows`
-    ///   field of `WindowLayout` can just be a `Vec` with one element: the
-    ///   one window along with the fullscreen `Geometry`.
-    ///
-    /// * When the `Option` is `None`, we know that there are no windows, so
-    ///   we can just return an empty `WindowLayout`.
-    ///
     fn get_window_layout(&self) -> WindowLayout {
         let fullscreen_geometry = self.screen.to_geometry();
         match self.get_focused_window() {
@@ -290,12 +261,12 @@ mod tests {
     use super::FullscreenWM;
 
     #[test]
-    fn test_empty_tiling_wm() {
+    fn test_empty_tiling_wm(){
         window_manager::test_empty_wm::<FullscreenWM>();
     }
 
     #[test]
-    fn test_adding_and_removing_some_windows() {
+    fn test_adding_and_removing_some_windows(){
         window_manager::test_adding_and_removing_windows::<FullscreenWM>();
     }
 
@@ -315,12 +286,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_window_info() {
+    fn test_get_window_info(){
         window_manager::test_get_window_info::<FullscreenWM>();
     }
 
     #[test]
-    fn test_resize_screen() {
+    fn test_resize_screen(){
         window_manager::test_resize_screen::<FullscreenWM>();
     }
 }
